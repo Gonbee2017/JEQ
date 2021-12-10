@@ -96,7 +96,7 @@ namespace jeq {
 
 //// クラスメンバの定義
 
-// 日本語チャットバーをアクティブにするべきキー状況のセット。
+// 日本語チャットバーをアクティブにするキー状況のセット。
 const std::unordered_set<DWORD> eqgame_t::ACTIVATE_KEY_SITUATIONS = {
 	makeKeySituation(TRUE , KeyCombo{0, 0, 0, DIK_RETURN}),
 	makeKeySituation(TRUE , KeyCombo{0, 0, 0, DIK_SLASH }),
@@ -105,7 +105,7 @@ const std::unordered_set<DWORD> eqgame_t::ACTIVATE_KEY_SITUATIONS = {
 	makeKeySituation(FALSE, KeyCombo{0, 0, 0, DIK_RETURN}),
 };
 
-// 無視するべきキー状況のセット。
+// 無視するキー状況のセット。
 const std::unordered_set<DWORD> eqgame_t::IGNORE_KEY_SITUATIONS = {
 	makeKeySituation(TRUE, KeyCombo{0, 0, 0, DIK_RETURN}),
 	makeKeySituation(TRUE, KeyCombo{0, 0, 0, DIK_SLASH }),
@@ -145,7 +145,7 @@ eqgame_t::ProcessGameEvents_t
 // ただし非EQチャットモードのときは何もしない。
 // エラーが発生したらjchat.dllの機能を停止する。
 void eqgame_t::CEverQuest_InterpretCmd_detour(
-	eqgame_t *player, // プレイヤー(パススルー)。
+	eqgame_t *player, // プレイヤー。
 	char *cmd         // 実行するコマンド。
 ) {
 	if (!*NotInChatMode) context.jchat_bar.transferText(cmd);
@@ -268,8 +268,8 @@ void jchat_bar_t::activate(
 // jchat.iniから読み込んだ位置と幅で初期化する。
 // ウインドウを作成した直後は非表示状態になっている。
 void jchat_bar_t::create() {
-	// メインウインドウのクライアント座標系における位置を初期化し、
-	// スクリーン座標に変換する。
+	// メインウインドウのクライアント座標系における位置を初期化して、
+	// スクリーン座標に変換し、チャットバーの初期位置として指定する。
 	data->mw_client_pos = POINT{
 		context.ini.window.left, 
 		context.ini.window.top
@@ -366,12 +366,6 @@ jchat_bar_t::data_t::~data_t() {
 	reverseClear(exits);
 }
 
-// 日本語チャットバーのチャンネル欄のメッセージマップ。
-const jchat_bar_t::message_map_t jchat_bar_t::CHANNEL_MESSAGE_MAP = {
-	{WM_CHAR      , &jchat_bar_t::channel_onChar      },
-	{WM_SYSKEYDOWN, &jchat_bar_t::channel_onSysKeyDown},
-};
-
 // 仮想キーコード→チャンネルのインデックスのマップ。
 const std::unordered_map<BYTE,int> jchat_bar_t::CHANNEL_INDICES = {
 	{'A', 0},
@@ -381,6 +375,12 @@ const std::unordered_map<BYTE,int> jchat_bar_t::CHANNEL_INDICES = {
 	{'R', 4},
 	{'S', 5},
 	{'H', 6},
+};
+
+// 日本語チャットバーのチャンネル欄のメッセージマップ。
+const jchat_bar_t::message_map_t jchat_bar_t::CHANNEL_MESSAGE_MAP = {
+	{WM_CHAR      , &jchat_bar_t::channel_onChar      },
+	{WM_SYSKEYDOWN, &jchat_bar_t::channel_onSysKeyDown},
 };
 
 // チャンネルのテキストの配列。
@@ -517,6 +517,10 @@ CALLBACK jchat_bar_t::edit_WindowProc_sub(
 }
 
 // 日本語チャットのチャンネル欄で文字が入力されたときに呼び出される。
+// Enterキーが押されたら、入力行を実行し、今までの発言リストに追加する。
+// Shift+Enterキーが押されたら、入力行をよく使う発言リストに追加する。
+// Escキーが押されたらメインウインドウをアクティブにする。
+// Tabキーが押されたらフォーカスを移動する。
 LRESULT // 結果。0なら処理済み。
 jchat_bar_t::channel_onChar(
 	HWND hwnd,     // チャンネル欄のハンドル。
@@ -610,6 +614,10 @@ jchat_bar_t::ctl_onSysKeyDown(
 
 // 日本語チャットの入力欄で文字が入力されたときに呼び出される。
 // Ctrl+Aキーが押されたら全テキストを選択する。
+// Enterキーが押されたら、入力行を実行し、今までの発言リストに追加する。
+// Shift+Enterキーが押されたら、入力行をよく使う発言リストに追加する。
+// Escキーが押されたらメインウインドウをアクティブにする。
+// Tabキーが押されたらフォーカスを移動する。
 LRESULT // 結果。0なら処理済み。
 jchat_bar_t::edit_onChar(
 	HWND hwnd,     // 入力欄のハンドル。
@@ -755,7 +763,8 @@ jchat_bar_t::onCtlColorEdit(
 	} else if (ctl_handle == data->edit.handle) {
 		// 入力欄の背景は岩棒ブラシで塗りつぶすので透明モードを設定する。
 		api::SetBkMode(ctl_dc_handle, TRANSPARENT);
-		// 原点としてチャットバーの左上角の相対座標を設定する。
+		// 原点としてチャットバーの左上隅に対する相対座標を設定する。
+		// こうすることでチャットバーの背景とシームレスになる。
 		api::SetBrushOrgEx(
 			ctl_dc_handle, 
 			-(EDIT_LEFT + 2), 

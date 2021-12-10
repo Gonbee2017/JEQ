@@ -327,7 +327,7 @@ struct lines_and_iter_t {
 
 // 日本語チャットバーを表す。
 // メインウインドウと共に、自PCがスポーンしているときに表示される。
-// 幅300ピクセル(既定値)、高さ24ピクセルの横に長い棒のような形をしている。
+// 幅400ピクセル(既定値)、高さ24ピクセルの横に長い棒のような形をしている。
 // チャットバーの上にはチャンネル欄と入力欄が配置されている。
 // EQチャットと同じように発言したり、コマンドを実行することができる。
 class jchat_bar_t {
@@ -384,8 +384,8 @@ protected:
 		~data_t();
 	};
 
-	static const message_map_t CHANNEL_MESSAGE_MAP;
 	static const std::unordered_map<BYTE,int> CHANNEL_INDICES;
+	static const message_map_t CHANNEL_MESSAGE_MAP;
 	static const std::array<std::string,7> CHANNEL_TEXTS;
 	static const message_map_t EDIT_MESSAGE_MAP;
 	static const message_map_t MESSAGE_MAP;
@@ -524,8 +524,9 @@ void lines_and_iter_t::moveEnd() {
 
 //// テンプレート関数とインライン関数の定義
 
-// チャットモードフラグとキーの組み合わせを合成する。
-DWORD // 合成したキーの状況。
+// チャットモードフラグとキーの組み合わせを合成して、
+// キーの状況を作成する。
+DWORD // 作成したキーの状況。
 makeKeySituation(
 	BYTE not_in_chat_mode,    // EQチャットモードフラグ。
 	const KeyCombo &key_combo // キーの組み合わせ。
