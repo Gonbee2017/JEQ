@@ -9,7 +9,7 @@
 
 ### インストール
 
-`JChat.zip`を[こちら](releases)からダウンロードします。
+`JChat.zip`を[こちら](/releases)からダウンロードします。
 
 ![](Documents/jchatzip.png)
 
