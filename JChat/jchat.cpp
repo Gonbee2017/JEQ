@@ -142,7 +142,7 @@ eqgame_t::ProcessGameEvents_t
 // CEverQuestクラスのInterpretCmdメンバのDetour関数。
 // コマンドの内容を解析し、実行するために呼び出される。
 // EQチャットから入力されたコマンドはそのまま日本語チャットへ転送する。
-// ただしフルスクリーンモードのときと非EQチャットモードのときは何もしない。
+// ただし非EQチャットモードのときは何もしない。
 // エラーが発生したらjchat.dllの機能を停止する。
 void eqgame_t::CEverQuest_InterpretCmd_detour(
 	eqgame_t *player, // プレイヤー(パススルー)。
@@ -179,7 +179,6 @@ eqgame_t::CXWndManager_DrawCursor_detour() {
 // KeypressHandlerクラスのHandleKeyDownメンバのDetour関数。
 // メインウインドウでキーが押されたときに呼び出される。
 // Enterキーなどが押されたら、Trampoline関数を呼び出さずにイベントを無視する。
-// ただしフルスクリーンモードのときは何もしない。
 // エラーが発生したらjchat.dllの機能を停止する。
 bool // おそらく真なら処理済み、偽なら未処理。
 eqgame_t::KeypressHandler_HandleKeyDown_detour(
@@ -201,7 +200,6 @@ eqgame_t::KeypressHandler_HandleKeyDown_detour(
 // それはコマンドを実行しようとしていることになるので
 // (コマンドは横取りされて日本語チャットに転送される)、
 // その場合もチャットバーをアクティブにする。
-// ただしフルスクリーンモードのときは何もしない。
 // エラーが発生したらjchat.dllの機能を停止する。
 bool // おそらく真なら処理済み、偽なら未処理。
 eqgame_t::KeypressHandler_HandleKeyUp_detour(
@@ -297,7 +295,7 @@ void jchat_bar_t::create() {
 }
 
 // 日本語チャットバーの位置ズレを修正する。
-// 位置ズレはスクリーンモードの変更によって生じる。
+// 位置ズレは画面モードの変更によって生じる。
 // またチャットバーがメインウインドウの外に位置しているときに、
 // フルスクリーンモードに変更されると、チャットバーが画面外に
 // 出て見えなくなってしまうため、画面の中心に移動する。
@@ -1844,8 +1842,8 @@ getOffset(
 	return offset;
 }
 
-// スクリーンモードを取得する。
-screen_modes // 取得したスクリーンモード。
+// 画面モードを取得する。
+screen_modes // 取得した画面モード。
 getScreenMode() {
 	if (api::IsIconic(*eqgame_t::MainWindowHandle)) 
 		return screen_modes::ICONIC;
@@ -1864,7 +1862,7 @@ void onGameStateChange() {
 		if (context.game_state == GAMESTATE_INGAME) {
 			// チャットバーを作成していなければ作成する。
 			if (!bar.getHandle()) {
-				// スクリーンモードを初期化する。
+				// 画面モードを初期化する。
 				context.screen_mode = getScreenMode();
 				// earlyで作った以外の関数のDetourを作る。
 				bindAddressAndDetourAttach_lazy();
@@ -1911,7 +1909,7 @@ onProcessDetach() {
 	return TRUE;
 }
 
-// スクリーンモードが変更されたときに呼び出される。
+// 画面モードが変更されたときに呼び出される。
 // 変更によって生じるチャットバーの位置ズレを修正する。
 void onScreenModeChange() {
 	try {
@@ -1937,10 +1935,10 @@ void refreshGameState(
 	}
 }
 
-// スクリーンモードを最新の状態に更新する。
-// スクリーンモードに応じてチャットバーの位置ズレを修正する。
+// 画面モードを最新の状態に更新する。
+// 画面モードに応じてチャットバーの位置ズレを修正する。
 void refreshScreenMode() {
-	// スクリーンモードが変更されていれば保存し、ハンドラを呼び出す。
+	// 画面モードが変更されていれば保存し、ハンドラを呼び出す。
 	screen_modes new_screen_mode = getScreenMode();
 	if (new_screen_mode != context.screen_mode) {
 		context.screen_mode = new_screen_mode;

@@ -82,7 +82,7 @@
 // ⑤ゾーンにPOPするとチャットバーが表示される。
 
 // ただしjchat.iniについては2種類のバージョンが用意されており、
-// クライアントがRoF2ならRoF2向け、TitaniumならTitanium向けがある。
+// クライアントによってRoF2向けとTitanium向けに分かれている。
 
 // jchat.iniには以下の設定が保存されている。
 // ・ウインドウの位置と幅
@@ -202,11 +202,10 @@ constexpr COLORREF EDIT_OUTER_RAISED_COLOR = // 外側の枠線の左辺・上辺の色。
 constexpr int EDIT_TOP = 2;                  // 上辺のY座標。
 
 // EQチャットのリンクの定数。
-constexpr char EQCHAT_LINK_EDGE = 0x12;               // 両端の記号。
+constexpr char EQCHAT_LINK_EDGE = 0x12; // 両端の記号。
 
 // jchat.iniの定数。
-constexpr char INI_CHAT_COMMAND_SYMBOLS_DEF[] =           // コマンド記号の列の既定値。
-	"/#^";
+constexpr char INI_CHAT_COMMAND_SYMBOLS_DEF[] = "/#^";  // コマンド記号の列の既定値。
 constexpr char INI_CHAT_FONT_NAME_DEF[] =               // フォントの名前の既定値。
 	"ＭＳ Ｐゴシック";
 constexpr std::size_t INI_CHAT_LINK_BODY_SIZE_DEF = 56; // リンクのボディ部分のサイズの既定値。
@@ -221,13 +220,13 @@ constexpr char JCHAT_LINK_DIVIDER = ':'; // 番号と名前を分割する記号。
 constexpr char JCHAT_LINK_OPEN = '{';    // 始端の記号。
 
 // 日本語チャットバーの定数。
-constexpr COLORREF JCHAT_BAR_SUNKEN_COLOR =          // 枠線の右辺・下辺の色。
+constexpr COLORREF JCHAT_BAR_SUNKEN_COLOR =      // 枠線の右辺・下辺の色。
 	RGB(49, 48, 41);
-constexpr COLORREF JCHAT_BAR_RAISED_COLOR =          // 枠線の左辺・上辺の色。
+constexpr COLORREF JCHAT_BAR_RAISED_COLOR =      // 枠線の左辺・上辺の色。
 	RGB(165, 158, 115);
-constexpr char JCHAT_BAR_CLASS_NAME[] = "JChat";     // クラスの名前。
-constexpr std::size_t JCHAT_BAR_HEIGHT = 24;         // 高さ。
-constexpr char JCHAT_BAR_NAME[] = "JChat";           // タイトル。
+constexpr char JCHAT_BAR_CLASS_NAME[] = "JChat"; // クラスの名前。
+constexpr std::size_t JCHAT_BAR_HEIGHT = 24;     // 高さ。
+constexpr char JCHAT_BAR_NAME[] = "JChat";       // タイトル。
 
 // その他の定数。
 constexpr std::size_t FONT_SIZE = 12;   // フォントのサイズ。
@@ -246,7 +245,7 @@ enum class change_modes : int {
 	CHOICE, // リストから選択することで変更する。
 };
 
-// スクリーンのモードを表す。
+//	画面モードを表す。
 enum class screen_modes : int {
 	WINDOW,      // ウインドウ。
 	FULL_SCREEN, // フルスクリーン。
@@ -365,13 +364,13 @@ protected:
 			ordered_indices;                  // ハンドル→Tab順のインデックスのマップ。
 		std::unordered_map<COLORREF,HPEN> 
 			pen_cache;                        // ペンのキャッシュ。
-		lines_and_iter_t registry;        // よく使う発言リスト。
+		lines_and_iter_t registry;            // よく使う発言リスト。
 		HBRUSH rock_bar_brush_handle = NULL;  // 岩棒ブラシのハンドル。
 		HBRUSH rock_wall_brush_handle = NULL; // 岩壁ブラシのハンドル。
 		POINT mw_client_pos;                  // メインウインドウのクライアント座標系における位置。
 		struct {
 			WNDPROC WindowProc_super = NULL; // サブクラス化前のウインドウプロシージャ。
-			HWND handle = NULL; // ハンドル。
+			HWND handle = NULL;              // ハンドル。
 		} channel; // チャンネル欄のデータ。
 		struct {
 			WNDPROC WindowProc_super = NULL; // サブクラス化前のウインドウプロシージャ。
@@ -454,7 +453,7 @@ struct context_t {
 	jchat_bar_t jchat_bar;                  // 日本語チャットバー。
 	std::shared_ptr<std::ostream> log;      // jchat.logの出力ストリーム。
 	std::filesystem::path log_path;         // jchat.logのパス。
-	screen_modes screen_mode;               // スクリーンモードフラグ。
+	screen_modes screen_mode;               // 画面モードフラグ。
 	struct {
 		struct {
 			std::string command_symbols; // コマンド記号の列。
