@@ -200,7 +200,7 @@ point_clientToScreen(
 // 位置をクライアント座標系からスクリーン座標系に変換する。
 POINT // 変換した位置。
 point_screenToClient(
-	POINT pos,  // 変換する位置。
+	POINT pos, // 変換する位置。
 	HWND hwnd  // ウインドウのハンドル。
 ) {
 	api::ScreenToClient(hwnd, &pos);
@@ -293,9 +293,9 @@ string_sjisToUtf16(
 		0
 	);
 	// 変換後の文字列を格納する領域を確保する。
- 	std::wstring dest(dest_len, L'\0');
+	std::wstring dest(dest_len, L'\0');
 	// 変換する。
-    if (!MultiByteToWideChar(
+	if (!MultiByteToWideChar(
 		CP_ACP, 
 		0, 
 		src.data(), 
@@ -303,9 +303,9 @@ string_sjisToUtf16(
 		dest.data(), 
 		dest.size()
 	)) return std::wstring();
- 	// 終端の'\0'を切り捨てる。
+	// 終端の'\0'を切り捨てる。
 	dest.resize(dest_len - 1);
-    return dest;
+	return dest;
 }
 
 // 文字列に含まれる大文字を小文字に変換する。
@@ -360,7 +360,7 @@ window_getText(
 		if (len != int(text.size()) - 1) break;
 		text.resize(text.size() * 2);
 	}
-    text.resize(len);
+	text.resize(len);
 	text.shrink_to_fit();
 	return text;
 }
@@ -403,8 +403,8 @@ wstring_utf16ToUtf8(
 		nullptr
 	)) return std::string();
 	// 終端の'\0'を切り捨てる。
-    dest.resize(dest_len - 1);
-    return dest;
+	dest.resize(dest_len - 1);
+	return dest;
 }
 
 }
