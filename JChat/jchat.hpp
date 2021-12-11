@@ -245,7 +245,7 @@ enum class change_modes : int {
 	CHOICE, // リストから選択することで変更する。
 };
 
-//	画面モードを表す。
+// 画面モードを表す。
 enum class screen_modes : int {
 	WINDOW,      // ウインドウ。
 	FULL_SCREEN, // フルスクリーン。

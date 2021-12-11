@@ -524,7 +524,7 @@ CALLBACK jchat_bar_t::edit_WindowProc_sub(
 LRESULT // 結果。0なら処理済み。
 jchat_bar_t::channel_onChar(
 	HWND hwnd,     // チャンネル欄のハンドル。
-	UINT msg, 	   // WM_CHARメッセージ。
+	UINT msg,      // WM_CHARメッセージ。
 	WPARAM wparam, // 仮想キーコード。
 	LPARAM lparam  // 使用しない。
 ) {
@@ -542,7 +542,7 @@ jchat_bar_t::channel_onChar(
 LRESULT // 結果。0なら処理済み。
 jchat_bar_t::channel_onSysKeyDown(
 	HWND hwnd,     // チャンネル欄のハンドル。
-	UINT msg, 	   // WM_SYSKEYDOWNメッセージ。
+	UINT msg,      // WM_SYSKEYDOWNメッセージ。
 	WPARAM wparam, // 仮想キーコード。
 	LPARAM lparam  // 使用しない。
 ) {
@@ -564,7 +564,7 @@ LRESULT // 結果。0なら処理済み。
 jchat_bar_t::ctl_onChar(
 	WNDPROC super_proc, // サブクラス化前のウインドウプロシージャ。
 	HWND hwnd,          // コントロールのハンドル。
-	UINT msg, 	        // WM_CHARメッセージ。
+	UINT msg,           // WM_CHARメッセージ。
 	WPARAM wparam,      // 仮想キーコード。
 	LPARAM lparam       // 使用しない。
 ) {
@@ -594,7 +594,7 @@ LRESULT // 結果。0なら処理済み。
 jchat_bar_t::ctl_onSysKeyDown(
 	WNDPROC super_proc, // サブクラス化前のウインドウプロシージャ。
 	HWND hwnd,          // コントロールのハンドル。
-	UINT msg, 	        // WM_SYSKEYDOWNメッセージ。
+	UINT msg,           // WM_SYSKEYDOWNメッセージ。
 	WPARAM wparam,      // 仮想キーコード。
 	LPARAM lparam       // 使用しない。
 ) {
@@ -621,7 +621,7 @@ jchat_bar_t::ctl_onSysKeyDown(
 LRESULT // 結果。0なら処理済み。
 jchat_bar_t::edit_onChar(
 	HWND hwnd,     // 入力欄のハンドル。
-	UINT msg, 	   // WM_CHARメッセージ。
+	UINT msg,      // WM_CHARメッセージ。
 	WPARAM wparam, // 仮想キーコード。
 	LPARAM lparam  // 使用しない。
 ) {
@@ -645,7 +645,7 @@ jchat_bar_t::edit_onChar(
 LRESULT // 結果。0なら処理済み。
 jchat_bar_t::edit_onKeyDown(
 	HWND hwnd,     // 入力欄のハンドル。
-	UINT msg, 	   // WM_KEYDOWNメッセージ。
+	UINT msg,      // WM_KEYDOWNメッセージ。
 	WPARAM wparam, // 仮想キーコード。
 	LPARAM lparam  // 使用しない。
 ) {
@@ -671,7 +671,7 @@ jchat_bar_t::edit_onKeyDown(
 LRESULT // 結果。0なら処理済み。
 jchat_bar_t::edit_onSysKeyDown(
 	HWND hwnd,     // 入力欄のハンドル。
-	UINT msg, 	   // WM_SYSKEYDOWNメッセージ。
+	UINT msg,      // WM_SYSKEYDOWNメッセージ。
 	WPARAM wparam, // 仮想キーコード。
 	LPARAM lparam  // 使用しない。
 ) {
@@ -694,7 +694,7 @@ jchat_bar_t::edit_onSysKeyDown(
 LRESULT // 結果。0なら処理済み。
 jchat_bar_t::onActivate(
 	HWND hwnd,     // チャットバーのハンドル。
-	UINT msg, 	   // WM_ACTIVATEメッセージ。
+	UINT msg,      // WM_ACTIVATEメッセージ。
 	WPARAM wparam, // 使用しない。
 	LPARAM lparam  // 使用しない。
 ) {
@@ -708,7 +708,7 @@ jchat_bar_t::onActivate(
 LRESULT // 結果。0なら処理済み。
 jchat_bar_t::onCommand(
 	HWND hwnd,     // チャットバーのハンドル。
-	UINT msg, 	   // WM_COMMANDメッセージ。
+	UINT msg,      // WM_COMMANDメッセージ。
 	WPARAM wparam, // コントロールのIDと通知コード。
 	LPARAM lparam  // 使用しない。
 ) {
@@ -733,7 +733,7 @@ jchat_bar_t::onCommand(
 LRESULT // 結果。0なら成功、-1なら失敗。
 jchat_bar_t::onCreate(
 	HWND hwnd,     // チャットバーのハンドル。
-	UINT msg, 	   // WM_CREATEメッセージ。
+	UINT msg,      // WM_CREATEメッセージ。
 	WPARAM wparam, // 使用しない。
 	LPARAM lparam  // 使用しない。
 ) {
@@ -748,7 +748,7 @@ jchat_bar_t::onCreate(
 LRESULT // 背景を塗りつぶすためのブラシのハンドル。
 jchat_bar_t::onCtlColorEdit(
 	HWND hwnd,     // チャットバーのハンドル。
-	UINT msg, 	   // WM_CTLCOLOREDITメッセージ。
+	UINT msg,      // WM_CTLCOLOREDITメッセージ。
 	WPARAM wparam, // コントロールのデバイスコンテキストのハンドル。 
 	LPARAM lparam  // コントロールのハンドル。
 ) {
@@ -780,7 +780,7 @@ jchat_bar_t::onCtlColorEdit(
 LRESULT // 背景を塗りつぶすためのブラシのハンドル。
 jchat_bar_t::onCtlColorListBox(
 	HWND hwnd,     // チャットバーのハンドル。
-	UINT msg, 	   // WM_CTLCOLORLISTBOXメッセージ。
+	UINT msg,      // WM_CTLCOLORLISTBOXメッセージ。
 	WPARAM wparam, // コントロールのデバイスコンテキストのハンドル。 
 	LPARAM lparam  // コントロールのハンドル。
 ) {
@@ -797,7 +797,7 @@ jchat_bar_t::onCtlColorListBox(
 LRESULT // 結果。0なら処理済み。
 jchat_bar_t::onDestroy(
 	HWND hwnd,     // チャットバーのハンドル。
-	UINT msg, 	   // WM_DESTROYメッセージ。
+	UINT msg,      // WM_DESTROYメッセージ。
 	WPARAM wparam, // 使用しない。
 	LPARAM lparam  // 使用しない。
 ) {
@@ -835,7 +835,7 @@ jchat_bar_t::onDestroy(
 LRESULT // 結果。0なら処理済み。
 jchat_bar_t::onGetMinMaxInfo(
 	HWND hwnd,     // チャットバーのハンドル。
-	UINT msg, 	   // WM_GETMINMAXINFOメッセージ。
+	UINT msg,      // WM_GETMINMAXINFOメッセージ。
 	WPARAM wparam, // 使用しない。
 	LPARAM lparam  // MINMAXINFOのポインタ。
 ) {
@@ -849,7 +849,7 @@ jchat_bar_t::onGetMinMaxInfo(
 LRESULT // 領域の種類。
 jchat_bar_t::onMove(
 	HWND hwnd,     // チャットバーのハンドル。
-	UINT msg, 	   // WM_MOVEメッセージ。
+	UINT msg,      // WM_MOVEメッセージ。
 	WPARAM wparam, // 使用しない。
 	LPARAM lparam  // X座標とY座標。
 ) {
@@ -867,7 +867,7 @@ jchat_bar_t::onMove(
 LRESULT // 領域の種類。
 jchat_bar_t::onNCHitTest(
 	HWND hwnd,     // チャットバーのハンドル。
-	UINT msg, 	   // WM_NCHITTESTメッセージ。
+	UINT msg,      // WM_NCHITTESTメッセージ。
 	WPARAM wparam, // 使用しない。
 	LPARAM lparam  // マウスカーソルのX座標とY座標。
 ) {
@@ -880,12 +880,12 @@ jchat_bar_t::onNCHitTest(
 	return HTCLIENT;
 }
 
-// 日本語チャットバーの非クライアント領域をダブルクリック
+// 日本語チャットバーの非クライアント領域を左ダブルクリック
 // されたときに呼び出される。チャットバーを最小幅まで縮める。
 LRESULT // 領域の種類。
 jchat_bar_t::onNCLButtonDblClk(
 	HWND hwnd,     // チャットバーのハンドル。
-	UINT msg, 	   // WM_NCLBUTTONDBLCLKメッセージ。
+	UINT msg,      // WM_NCLBUTTONDBLCLKメッセージ。
 	WPARAM wparam, // 使用しない。
 	LPARAM lparam  // 使用しない。
 ) {
@@ -907,7 +907,7 @@ jchat_bar_t::onNCLButtonDblClk(
 LRESULT // 結果。0なら処理済み。
 jchat_bar_t::onPaint(
 	HWND hwnd,     // チャットバーのハンドル。
-	UINT msg, 	   // WM_PAINTメッセージ。
+	UINT msg,      // WM_PAINTメッセージ。
 	WPARAM wparam, // 使用しない。
 	LPARAM lparam  // 使用しない。
 ) {
@@ -1000,7 +1000,7 @@ jchat_bar_t::onPaint(
 LRESULT // 真なら処理済み、偽なら未処理。
 jchat_bar_t::onSetCursor(
 	HWND hwnd,     // チャットバーのハンドル。
-	UINT msg, 	   // WM_SETCURSORメッセージ。
+	UINT msg,      // WM_SETCURSORメッセージ。
 	WPARAM wparam, // 使用しない。
 	LPARAM lparam  // 領域の種類。
 ) {
@@ -1025,7 +1025,7 @@ jchat_bar_t::onSetCursor(
 LRESULT // 結果。0なら処理済み。
 jchat_bar_t::onSetFocus(
 	HWND hwnd,     // チャットバーのハンドル。
-	UINT msg, 	   // WM_SETFOCUSメッセージ。
+	UINT msg,      // WM_SETFOCUSメッセージ。
 	WPARAM wparam, // 使用しない。
 	LPARAM lparam  // 使用しない。
 ) {
@@ -1038,7 +1038,7 @@ jchat_bar_t::onSetFocus(
 LRESULT // 結果。0なら処理済み。
 jchat_bar_t::onSize(
 	HWND hwnd,     // チャットバーのハンドル。
-	UINT msg, 	   // WM_SIZEメッセージ。
+	UINT msg,      // WM_SIZEメッセージ。
 	WPARAM wparam, // サイズ変更の種類。
 	LPARAM lparam  // ウインドウの幅と高さ。
 ) {
@@ -1672,7 +1672,9 @@ void context_t::release() {
 
 // 各ファイルのパスを設定し、jchat.logを開き、jchat.iniから読み込む。
 // またeqgame.exeのベースアドレスを取得する。
-void context_t::startup(HINSTANCE hinstDLL) {
+void context_t::startup(
+	HINSTANCE hinstDLL // DLLインスタンスのハンドル。
+) {
 	dll_handle = hinstDLL;
 	dll_path = module_getPath(dll_handle);
 	// コマンドライン引数を解析する。
@@ -1777,7 +1779,7 @@ context_t context; // プログラムの文脈(状況)。
 // チャットバーのコントロールにWM_CHARが送信されるようになる。
 LRESULT // 結果。
 WINAPI DispatchMessage_detour(
-	const MSG *msg // メッセージ。
+	const MSG *msg // 配送するメッセージ。
 ) {
 	if (api::GetActiveWindow() == context.jchat_bar.getHandle()) 
 		api::TranslateMessage(msg);
