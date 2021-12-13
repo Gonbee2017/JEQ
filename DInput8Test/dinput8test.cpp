@@ -1,5 +1,5 @@
-#include "common.hpp"
 #include "dinput8.hpp"
+#include "jcommon.hpp"
 
 #include <CppUnitTest.h>
 #include <windows.h>

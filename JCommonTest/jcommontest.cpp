@@ -1,4 +1,4 @@
-#include "common.hpp"
+#include "jcommon.hpp"
 
 #include <CppUnitTest.h>
 #include <windows.h>
@@ -17,7 +17,7 @@
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 using namespace jeq;
 
-TEST_CLASS(common_test) {
+TEST_CLASS(jcommon_test) {
 
 TEST_METHOD(test_char_isJLead) {
 	// ‹«ŠE’l‚Å³‚µ‚­“®ì‚Å‚«‚é‚©H

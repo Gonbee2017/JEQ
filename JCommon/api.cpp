@@ -3,7 +3,7 @@
 //// インクルード
 
 #include "api.hpp"
-#include "common.hpp"
+#include "jcommon.hpp"
 
 #include <windows.h>
 

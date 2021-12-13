@@ -18,16 +18,16 @@
     <ClCompile Include="apitest.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="commontest.cpp">
+    <ClCompile Include="dtrtest.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="errortest.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="stdtest.cpp">
+    <ClCompile Include="jcommontest.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="dtrtest.cpp">
+    <ClCompile Include="stdtest.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>

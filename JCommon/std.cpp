@@ -2,7 +2,7 @@
 
 //// インクルード
 
-#include "common.hpp"
+#include "jcommon.hpp"
 #include "std.hpp"
 
 #include <cerrno>

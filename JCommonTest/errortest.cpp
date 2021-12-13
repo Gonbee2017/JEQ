@@ -1,4 +1,4 @@
-#include "common.hpp"
+#include "jcommon.hpp"
 #include "error.hpp"
 
 #include <CppUnitTest.h>

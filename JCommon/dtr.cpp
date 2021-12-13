@@ -3,7 +3,7 @@
 //// インクルード
 
 #include "dtr.hpp"
-#include "common.hpp"
+#include "jcommon.hpp"
 
 #include <windows.h>
 #include <detours.h>

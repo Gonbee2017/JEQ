@@ -1,6 +1,6 @@
 #include "CppUnitTest.h"
-#include "common.hpp"
 #include "jchat.hpp"
+#include "jcommon.hpp"
 #include "resource.h"
 
 #include <dinput.h>

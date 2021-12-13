@@ -159,8 +159,8 @@
 
 //// インクルード
 
-#include "common.hpp"
 #include "eqgamedef.hpp"
+#include "jcommon.hpp"
 
 #include <windows.h>
 

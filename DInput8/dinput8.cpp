@@ -2,8 +2,8 @@
 
 //// インクルード
 
-#include "common.hpp"
 #include "dinput8.hpp"
+#include "jcommon.hpp"
 
 #include <windows.h>
 

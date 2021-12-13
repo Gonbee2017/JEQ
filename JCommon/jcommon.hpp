@@ -4,8 +4,8 @@
 // ただし今のところ共通していなくても、いつか共通しそうな処理、
 // 例えば文字エンコーディング変換のような処理もここに配置する。
 
-#ifndef JEQ_COMMON_HPP
-#define JEQ_COMMON_HPP
+#ifndef JEQ_JCOMMON_HPP
+#define JEQ_JCOMMON_HPP
 
 //// インクルード
 
@@ -723,4 +723,4 @@ void _stringizeTo(
 
 }
 
-#endif // #ifndef JEQ_COMMON_HPP
+#endif // #ifndef JEQ_JCOMMON_HPP

@@ -2,9 +2,9 @@
 
 //// インクルード
 
-#include "common.hpp"
 #include "eqgamedef.hpp"
 #include "jchat.hpp"
+#include "jcommon.hpp"
 #include "resource.h"
 
 #include <dinput.h>

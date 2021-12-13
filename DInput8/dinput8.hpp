@@ -49,7 +49,7 @@
 
 //// インクルード
 
-#include "common.hpp"
+#include "jcommon.hpp"
 
 #include <windows.h>
 
