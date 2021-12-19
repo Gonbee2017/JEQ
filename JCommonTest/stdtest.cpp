@@ -3,7 +3,6 @@
 #include <CppUnitTest.h>
 
 #include <filesystem>
-#include <fstream>
 #include <ios>
 #include <string>
 #include <system_error>
@@ -118,13 +117,19 @@ TEST_METHOD(test_getenv) {
 TEST_METHOD(test_make_ofstream) {
 	{ // エラーをスローできるか？
 		test_helper_t help;
-		auto out = std::make_shared<std::ofstream>("");
 		std_::make_ofstream_true = [&](
 			const std::string &s, 
 			std::ios_base::openmode mode
 		) -> std::shared_ptr<std::ostream> {
 			help << "make_ofstream\n";
-			return out;
+			return help.getSeqPtr<std::ostream>();
+		};
+		std_::ostream_exceptions_set_true = [&](
+			std::ostream *out, 
+			std::ios::iostate except
+		) {
+			help << "ostream_exceptions_set\n";
+			throw std::ios_base::failure(help.getSeqStr());
 		};
 		try {
 			help.setSeqBase();
@@ -134,11 +139,11 @@ TEST_METHOD(test_make_ofstream) {
 			Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::std_::make_ofstream", 1), err.getMessage());
 		}
 		Assert::AreEqual(std::string("make_ofstream"), help.getLine());
+		Assert::AreEqual(std::string("ostream_exceptions_set"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	{ // 正しく呼び出せるか？
 		test_helper_t help;
-		auto out = std::make_shared<std::ofstream>();
 		std_::make_ofstream_true = [&](
 			const std::string &s, 
 			std::ios_base::openmode mode
@@ -146,11 +151,62 @@ TEST_METHOD(test_make_ofstream) {
 			help << "make_ofstream\n";
 			help << s << '\n';
 			help << int(mode) << '\n';
-			return out;
+			return help.getSeqPtr<std::ostream>();
+		};
+		std_::ostream_exceptions_set_true = [&](
+			std::ostream *out, 
+			std::ios::iostate except
+		) {
+			help << "ostream_exceptions_set\n";
+			help << int(out) << '\n';
+			help << int(except) << '\n';
 		};
 		help.setSeqBase();
-		Assert::AreEqual(int(out.get()), int(std_::make_ofstream(help.getSeqStr(1), help.getSeq<std::ios_base::openmode>(2)).get()));
+		Assert::AreEqual(3, int(std_::make_ofstream(help.getSeqStr(1), help.getSeq<std::ios_base::openmode>(2)).get()));
 		Assert::AreEqual(std::string("make_ofstream"), help.getLine());
+		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(std::string("2"), help.getLine());
+		Assert::AreEqual(std::string("ostream_exceptions_set"), help.getLine());
+		Assert::AreEqual(std::string("3"), help.getLine());
+		Assert::AreEqual(stringize(std::ios_base::failbit), help.getLine());
+		Assert::AreEqual(std::string(), help.getLine());
+	}
+}
+
+TEST_METHOD(test_ostream_exceptions_set) {
+	{ // 正しく呼び出せるか？
+		test_helper_t help;
+		std_::ostream_exceptions_set_true = [&](
+			std::ostream *out, 
+			std::ios::iostate except
+		) {
+			help << "ostream_exceptions_set\n";
+			help << int(out) << '\n';
+			help << int(except) << '\n';
+		};
+		help.setSeqBase();
+		std_::ostream_exceptions_set(help.getSeq<std::ostream*>(1), help.getSeq<std::ios::iostate>(2));
+		Assert::AreEqual(std::string("ostream_exceptions_set"), help.getLine());
+		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(std::string("2"), help.getLine());
+		Assert::AreEqual(std::string(), help.getLine());
+	}
+}
+
+TEST_METHOD(test_ostream_putLine) {
+	{ // 正しく呼び出せるか？
+		test_helper_t help;
+		std_::ostream_putLine_true = [&](
+			const std::ostream *out,
+			const std::string &line
+		) {
+			help << "ostream_putLine\n";
+			help << int(out) << '\n';
+			help << line << '\n';
+		};
+		help.setSeqBase();
+		std_::ostream_putLine(help.getSeq<std::ostream*>(1), help.getSeqStr(2));
+		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string("2"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());

@@ -37,7 +37,7 @@ error::getNumber() const {
 
 //// インポートの定義
 
-DEF_IMP_TRUE(DetourAttach) = [] (PVOID *ppPointer, PVOID pDetour) -> LONG {
+DEF_IMP_DEF(DetourAttach) = [] (PVOID *ppPointer, PVOID pDetour) -> LONG {
 	return ::DetourAttach(ppPointer, pDetour);
 };
 

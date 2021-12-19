@@ -7,11 +7,9 @@
 #include <cstddef>
 #include <cstring>
 #include <filesystem>
-#include <fstream>
 #include <ios>
 #include <memory>
 #include <ostream>
-#include <sstream>
 #include <string>
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
@@ -62,7 +60,6 @@ TEST_METHOD(test_context_startup) {
 	{ // コマンドライン引数でパスが指定されていないときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto log = std::make_shared<std::stringstream>();
 		api::GetCommandLine = [&]() -> LPSTR {
 			help << "GetCommandLine\n";
 			return "";
@@ -89,10 +86,19 @@ TEST_METHOD(test_context_startup) {
 			help << "make_ofstream\n";
 			help << file << '\n';
 			help << int(mode) << '\n';
-			return log;
+			return help.getSeqPtr<std::ostream>();
+		};
+		std_::ostream_exceptions_set_true = [&](
+			std::ostream *out, 
+			std::ios::iostate except
+		) {
+			help << "ostream_exceptions_set\n";
+			help << int(out) << '\n';
+			help << int(except) << '\n';
 		};
 		context.startup(help.getSeq<HMODULE>());
 		Assert::AreEqual(1, int(context.fake_dll_handle));
+		Assert::AreEqual(5, int(context.log.get()));
 		Assert::AreEqual(std::string("2\\3.4"), context.fake_dll_path.string());
 		Assert::AreEqual(std::string("3.4"), context.dll_name);
 		Assert::AreEqual(std::string("2\\3.log"), context.log_path.string());
@@ -103,12 +109,14 @@ TEST_METHOD(test_context_startup) {
 		Assert::AreEqual(std::string("make_ofstream"), help.getLine());
 		Assert::AreEqual(std::string("2\\3.log"), help.getLine());
 		Assert::AreEqual(stringize(int(std::ios_base::app)), help.getLine());
+		Assert::AreEqual(std::string("ostream_exceptions_set"), help.getLine());
+		Assert::AreEqual(std::string("5"), help.getLine());
+		Assert::AreEqual(stringize(std::ios_base::failbit), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	{ // コマンドライン引数でパスが指定されているときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto log = std::make_shared<std::stringstream>();
 		api::GetCommandLine = [&]() -> LPSTR {
 			help << "GetCommandLine\n";
 			return "3.log_path=hoge 3.ini_path=fuga";
@@ -135,10 +143,19 @@ TEST_METHOD(test_context_startup) {
 			help << "make_ofstream\n";
 			help << file << '\n';
 			help << int(mode) << '\n';
-			return log;
+			return help.getSeqPtr<std::ostream>();
+		};
+		std_::ostream_exceptions_set_true = [&](
+			std::ostream *out, 
+			std::ios::iostate except
+		) {
+			help << "ostream_exceptions_set\n";
+			help << int(out) << '\n';
+			help << int(except) << '\n';
 		};
 		context.startup(help.getSeq<HMODULE>());
 		Assert::AreEqual(1, int(context.fake_dll_handle));
+		Assert::AreEqual(5, int(context.log.get()));
 		Assert::AreEqual(std::string("2\\3.4"), context.fake_dll_path.string());
 		Assert::AreEqual(std::string("3.4"), context.dll_name);
 		Assert::AreEqual(std::string("hoge"), context.log_path.string());
@@ -149,6 +166,9 @@ TEST_METHOD(test_context_startup) {
 		Assert::AreEqual(std::string("make_ofstream"), help.getLine());
 		Assert::AreEqual(std::string("hoge"), help.getLine());
 		Assert::AreEqual(stringize(int(std::ios_base::app)), help.getLine());
+		Assert::AreEqual(std::string("ostream_exceptions_set"), help.getLine());
+		Assert::AreEqual(std::string("5"), help.getLine());
+		Assert::AreEqual(stringize(std::ios_base::failbit), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 }
@@ -331,7 +351,6 @@ TEST_METHOD(test_onProcessAttach) {
 	{ // dinput8.logを開けなかったときに失敗できるか？
 		test_helper_t help;
 		context = {};
-		auto log = std::make_shared<std::ofstream>("");
 		api::GetCommandLine = [&]() -> LPSTR {
 			help << "GetCommandLine\n";
 			return "";
@@ -358,7 +377,16 @@ TEST_METHOD(test_onProcessAttach) {
 			help << "make_ofstream\n";
 			help << file << '\n';
 			help << int(mode) << '\n';
-			return log;
+			return help.getSeqPtr<std::ostream>();
+		};
+		std_::ostream_exceptions_set_true = [&](
+			std::ostream *out, 
+			std::ios::iostate except
+		) {
+			help << "ostream_exceptions_set\n";
+			help << int(out) << '\n';
+			help << int(except) << '\n';
+			throw std::ios_base::failure(help.getSeqStr());
 		};
 		Assert::IsFalse(onProcessAttach(help.getSeq<HMODULE>()));
 		Assert::AreEqual(std::string("GetModuleFileName"), help.getLine());
@@ -367,12 +395,14 @@ TEST_METHOD(test_onProcessAttach) {
 		Assert::AreEqual(std::string("make_ofstream"), help.getLine());
 		Assert::AreEqual(std::string("2\\3.log"), help.getLine());
 		Assert::AreEqual(stringize(int(std::ios_base::app)), help.getLine());
+		Assert::AreEqual(std::string("ostream_exceptions_set"), help.getLine());
+		Assert::AreEqual(std::string("5"), help.getLine());
+		Assert::AreEqual(stringize(std::ios_base::failbit), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto log = std::make_shared<std::stringstream>();
 		api::FreeLibrary = [&](HMODULE hLibModule) -> BOOL {
 			help << "FreeLibrary\n";
 			help << int(hLibModule) << '\n';
@@ -451,51 +481,61 @@ TEST_METHOD(test_onProcessAttach) {
 			help << "make_ofstream\n";
 			help << file << '\n';
 			help << int(mode) << '\n';
-			return log;
+			return help.getSeqPtr<std::ostream>();
+		};
+		std_::ostream_exceptions_set_true = [&](
+			std::ostream *out, 
+			std::ios::iostate except
+		) {
+			help << "ostream_exceptions_set\n";
+			help << int(out) << '\n';
+			help << int(except) << '\n';
 		};
 		Assert::IsTrue(onProcessAttach(help.getSeq<HMODULE>()));
 		Assert::AreEqual(1, int(context.fake_dll_handle));
+		Assert::AreEqual(5, int(context.log.get()));
 		Assert::AreEqual(std::string("2\\3.4"), context.fake_dll_path.string());
 		Assert::AreEqual(std::string("3.4"), context.dll_name);
 		Assert::AreEqual(std::string("2\\3.log"), context.log_path.string());
 		Assert::AreEqual(std::string("2\\3.ini"), context.ini_path.string());
 		Assert::IsTrue(bool(context.log));
-		Assert::AreEqual(std::string("5\\3.4"), context.true_dll_path.string());
-		Assert::AreEqual(6, int(context.true_dll_handle));
-		Assert::AreEqual(7, int(context.DirectInput8Create_true));
+		Assert::AreEqual(std::string("6\\3.4"), context.true_dll_path.string());
+		Assert::AreEqual(7, int(context.true_dll_handle));
+		Assert::AreEqual(8, int(context.DirectInput8Create_true));
 		Assert::AreEqual(1, int(context.plugin_handles.size()));
-		Assert::AreEqual(9, int(context.plugin_handles[0]));
+		Assert::AreEqual(10, int(context.plugin_handles[0]));
 		Assert::AreEqual(2, int(context.exits.size()));
 		reverseClear(context.exits);
-		test_helper_t log_help(log->str());
-		Assert::AreEqual(std::string(), log_help.getLine());
 		Assert::AreEqual(std::string("GetModuleFileName"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string("GetCommandLine"), help.getLine());
 		Assert::AreEqual(std::string("make_ofstream"), help.getLine());
 		Assert::AreEqual(std::string("2\\3.log"), help.getLine());
 		Assert::AreEqual(stringize(int(std::ios_base::app)), help.getLine());
+		Assert::AreEqual(std::string("ostream_exceptions_set"), help.getLine());
+		Assert::AreEqual(std::string("5"), help.getLine());
+		Assert::AreEqual(stringize(std::ios_base::failbit), help.getLine());
 		Assert::AreEqual(std::string("getenv"), help.getLine());
 		Assert::AreEqual(std::string("PATH"), help.getLine());
 		Assert::AreEqual(std::string("filesystem_exists"), help.getLine());
-		Assert::AreEqual(std::string("5\\3.4"), help.getLine());
+		Assert::AreEqual(std::string("6\\3.4"), help.getLine());
 		Assert::AreEqual(std::string("filesystem_equivalent"), help.getLine());
-		Assert::AreEqual(std::string("5\\3.4"), help.getLine());
+		Assert::AreEqual(std::string("6\\3.4"), help.getLine());
 		Assert::AreEqual(std::string("2\\3.4"), help.getLine());
 		Assert::AreEqual(std::string("LoadLibrary"), help.getLine());
-		Assert::AreEqual(std::string("5\\3.4"), help.getLine());
+		Assert::AreEqual(std::string("6\\3.4"), help.getLine());
 		Assert::AreEqual(std::string("GetProcAddress"), help.getLine());
-		Assert::AreEqual(std::string("6"), help.getLine());
+		Assert::AreEqual(std::string("7"), help.getLine());
 		Assert::AreEqual(std::string("DirectInput8Create"), help.getLine());
 		Assert::AreEqual(std::string("GetPrivateProfileSection"), help.getLine());
 		Assert::AreEqual(std::string("Plugin"), help.getLine());
 		Assert::AreEqual(std::string("2\\3.ini"), help.getLine());
 		Assert::AreEqual(std::string("LoadLibrary"), help.getLine());
-		Assert::AreEqual(std::string("8"), help.getLine());
-		Assert::AreEqual(std::string("FreeLibrary"), help.getLine());
 		Assert::AreEqual(std::string("9"), help.getLine());
 		Assert::AreEqual(std::string("FreeLibrary"), help.getLine());
-		Assert::AreEqual(std::string("6"), help.getLine());
+		Assert::AreEqual(std::string("10"), help.getLine());
+		Assert::AreEqual(std::string("FreeLibrary"), help.getLine());
+		Assert::AreEqual(std::string("7"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 }

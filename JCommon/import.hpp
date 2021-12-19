@@ -63,6 +63,7 @@ DECL_IMP_WRAP(SetWindowText, BOOL, HWND hWnd, LPCSTR lpString);
 	...       /* すべての引数の型と名前。 */\
 ) \
 	using name ## _t = std::function<ret_type(__VA_ARGS__)>;\
+	extern const name ## _t name ## _DEF;\
 	extern name ## _t name ## _true;\
 	ret_type name(__VA_ARGS__);
 
@@ -87,17 +88,17 @@ DEF_IMP_EASY(SendMessage);
 	name ## _t name = ::name;
 
 // インポートを定義する。
-// ラッパー関数が呼び出す本当の関数を定義する。
+// ラッパー関数が呼び出す既定の関数を定義する。
 /* サンプルコード
-DEF_IMP_TRUE(filesystem_equivalent) = [](
+DEF_IMP_DEF(filesystem_equivalent) = [](
 	const std::filesystem::path &p1, 
 	const std::filesystem::path &p2
 ) -> bool {
 	return std::filesystem::equivalent(p1, p2);
 };
 */
-#define DEF_IMP_TRUE(name) \
-	name ## _t name ## _true
+#define DEF_IMP_DEF(name) \
+	const name ## _t name ## _DEF
 
 // インポートを定義する。
 // ラッパー関数の仮引数までを定義するので、続けて本体を定義すること。
@@ -120,6 +121,7 @@ DEF_IMP_WRAP(
 	ret_type, /* 戻り値の型。 */\
 	...       /* すべての引数の型と名前。 */\
 ) \
+	name ## _t name ## _true = name ## _DEF;\
 	ret_type name(__VA_ARGS__)
 
 // インポートを定義する。
@@ -137,6 +139,7 @@ DEF_IMP_WRAP_EASY(SetActiveWindow, HWND, HWND hWnd) {
 	ret_type, /* 戻り値の型。 */\
 	...       /* すべての引数の型と名前。 */\
 ) \
+	const name ## _t name ## _DEF = ::name;\
 	name ## _t name ## _true = ::name;\
 	ret_type name(__VA_ARGS__)
 

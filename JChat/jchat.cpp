@@ -442,7 +442,7 @@ LRESULT CALLBACK jchat_bar_t::WindowProc(
 			// WM_CREATEはCreateWindowEx関数の中から送信されるので、
 			// ここではfail関数を呼び出さず、ログを書き込むだけにする。
 			if (msg == WM_CREATE) {
-				putLog(*context.log, err.getMessage());
+				putLog(context.log.get(), err.getMessage());
 				res = -1;
 			} else context.fail(err);
 		}
@@ -823,7 +823,7 @@ jchat_bar_t::onDestroy(
 		);
 		storeRegistry();
 	} catch (const error &err) {
-		putLog(*context.log, err.getMessage());
+		putLog(context.log.get(), err.getMessage());
 	}
 	data = std::make_shared<data_t>();
 	return 0;
@@ -1554,7 +1554,7 @@ jchat_bar_t::text_eqChatToJChat(
 		std::size_t link_len = end - begin - 1;
 		if (link_len > context.ini.chat.link_body_size) {
 			// 次のような独自の形式に変換して出力する。
-			// {番号:名前}
+			// "{番号:名前}"
 			std::size_t name_len = link_len - context.ini.chat.link_body_size;
 			char *name = begin + 1 + context.ini.chat.link_body_size;
 			jc_text_out << string_printf(
@@ -1601,7 +1601,7 @@ jchat_bar_t::text_jChatToEQChat(
 			while (iter != jc_text.end()) {
 				chr = *iter++;
 				if (chr == JCHAT_LINK_DIVIDER) {
-					index = destringize<std::size_t,UINT_MAX>(index_out.str());
+					index = destringize<std::size_t>(index_out.str(), UINT_MAX);
 					break;
 				}
 				index_out << chr;
@@ -1644,7 +1644,7 @@ jchat_bar_t::text_jChatToEQChat(
 void context_t::fail(
 	const error &err // 失敗の原因となったエラー。
 ) {
-	if (log) putLog(*log, err.getMessage());
+	if (log) putLog(context.log.get(), err.getMessage());
 	release();
 }
 
@@ -1664,7 +1664,7 @@ void context_t::release() {
 		dtr::DetourTransactionCommit();
 		abort_exit.procedure() = nullptr;
 	} catch (const error &err) {
-		if (log) putLog(*log, err.getMessage());
+		if (log) putLog(context.log.get(), err.getMessage());
 	}
 	reverseClear(exits);
 	log.reset();
@@ -1711,53 +1711,38 @@ void context_t::startup(
 		"FontName", 
 		INI_CHAT_FONT_NAME_DEF
 	);
-	ini.chat.link_body_size = destringize<
-		std::size_t,
-		INI_CHAT_LINK_BODY_SIZE_DEF
-	>(
+	ini.chat.link_body_size = destringize<std::size_t>(
 		ini_getKeyValue(
 		ini_path, 
 		"Chat", 
 		"LinkBodySize", 
 		stringize(INI_CHAT_LINK_BODY_SIZE_DEF)
-	));
+	), INI_CHAT_LINK_BODY_SIZE_DEF);
 	// ウインドウに関するセクションを読み込む。
-	ini.window.left = destringize<
-		int,
-		INI_WINDOW_LEFT_DEF
-	>(ini_getKeyValue(
+	ini.window.left = destringize<int>(ini_getKeyValue(
 		ini_path, 
 		"Window", 
 		"Left", 
 		stringize(INI_WINDOW_LEFT_DEF)
-	));
-	ini.window.min_width = destringize<
-		std::size_t,
-		INI_WINDOW_MIN_WIDTH_DEF
-	>(ini_getKeyValue(
+	), INI_WINDOW_LEFT_DEF);
+	ini.window.min_width = destringize<std::size_t>(ini_getKeyValue(
 		ini_path, 
 		"Window", 
 		"MinWidth", 
 		stringize(INI_WINDOW_MIN_WIDTH_DEF)
-	));
-	ini.window.top = destringize<
-		int,
-		INI_WINDOW_TOP_DEF
-	>(ini_getKeyValue(
+	), INI_WINDOW_MIN_WIDTH_DEF);
+	ini.window.top = destringize<int>(ini_getKeyValue(
 		ini_path, 
 		"Window", 
 		"Top", 
 		stringize(INI_WINDOW_TOP_DEF)
-	));
-	ini.window.width = destringize<
-		std::size_t,
-		INI_WINDOW_WIDTH_DEF
-	>(ini_getKeyValue(
+	), INI_WINDOW_TOP_DEF);
+	ini.window.width = destringize<std::size_t>(ini_getKeyValue(
 		ini_path, 
 		"Window", 
 		"Width", 
 		stringize(INI_WINDOW_WIDTH_DEF)
-	));
+	), INI_WINDOW_WIDTH_DEF);
 	// チャットバーの初期幅が最小幅より小さければ修正する。
 	clampByMin(ini.window.width, ini.window.min_width);
 	base_address = DWORD(api::GetModuleHandle(NULL));
@@ -1844,7 +1829,7 @@ getOffset(
 		"Offset", 
 		name,
 		"0"
-	), std::hex);
+	), 0, std::hex);
 	if (!offset)
 		throw error(string_printf(
 			"Offsetセクションの%sキーが不正です。", 

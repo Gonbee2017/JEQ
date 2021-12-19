@@ -4,6 +4,7 @@
 #include <windows.h>
 
 #include <chrono>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdlib>
 #include <ctime>
@@ -11,7 +12,9 @@
 #include <filesystem>
 #include <iomanip>
 #include <map>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
@@ -164,25 +167,25 @@ TEST_METHOD(test_cursor_isOverWindow) {
 
 TEST_METHOD(test_destringize) {
 	// intに変換できるか？
-	Assert::AreEqual(1 , destringize<int   >("1" ));
-	Assert::AreEqual(-1, destringize<int   >("-1"));
-	Assert::AreEqual(0 , destringize<int   >(""  ));
-	Assert::AreEqual(0 , destringize<int   >("a" ));
-	Assert::AreEqual(-1, destringize<int,-1>("a" ));
+	Assert::AreEqual(1 , destringize<int>("1" ,  0));
+	Assert::AreEqual(-1, destringize<int>("-1",  0));
+	Assert::AreEqual(0 , destringize<int>(""  ,  0));
+	Assert::AreEqual(0 , destringize<int>("a" ,  0));
+	Assert::AreEqual(-1, destringize<int>("a" , -1));
 
 	// DWORDに変換できるか？
-	Assert::AreEqual(0x00000001ul, destringize<DWORD             >("1", std::hex));
-	Assert::AreEqual(0x0000000ful, destringize<DWORD             >("f", std::hex));
-	Assert::AreEqual(0x00000000ul, destringize<DWORD             >("" , std::hex));
-	Assert::AreEqual(0x00000000ul, destringize<DWORD             >("g", std::hex));
-	Assert::AreEqual(0xfffffffful, destringize<DWORD,0xfffffffful>("g", std::hex));
+	Assert::AreEqual(0x00000001ul, destringize<DWORD>("1", 0x00000000ul, std::hex));
+	Assert::AreEqual(0x0000000ful, destringize<DWORD>("f", 0x00000000ul, std::hex));
+	Assert::AreEqual(0x00000000ul, destringize<DWORD>("" , 0x00000000ul, std::hex));
+	Assert::AreEqual(0x00000000ul, destringize<DWORD>("g", 0x00000000ul, std::hex));
+	Assert::AreEqual(0xfffffffful, destringize<DWORD>("g", 0xfffffffful, std::hex));
 
 	// boolに変換できるか？
-	Assert::IsFalse(destringize<bool     >("0"));
-	Assert::IsTrue (destringize<bool     >("1"));
-	Assert::IsFalse(destringize<bool     >("" ));
-	Assert::IsFalse(destringize<bool     >("a"));
-	Assert::IsTrue (destringize<bool,true>("a"));
+	Assert::IsFalse(destringize<bool>("0", false));
+	Assert::IsTrue (destringize<bool>("1", false));
+	Assert::IsFalse(destringize<bool>("" , false));
+	Assert::IsFalse(destringize<bool>("a", false));
+	Assert::IsTrue (destringize<bool>("a", true ));
 }
 
 TEST_METHOD(test_getCtrlAlphabetKey) {
@@ -634,7 +637,14 @@ TEST_METHOD(test_putLog) {
 		{
 			return now_;
 		};
-		std::stringstream log;
+		std_::ostream_putLine_true = [&](
+			const std::ostream *out,
+			const std::string &line
+		) {
+			help << "ostream_putLine\n";
+			help << int(out) << '\n';
+			help << line << '\n';
+		};
 		tm_.tm_year = 100 + help.getSeq();
 		tm_.tm_mon = help.getSeq() - 1;
 		tm_.tm_mday = help.getSeq();
@@ -643,9 +653,11 @@ TEST_METHOD(test_putLog) {
 		tm_.tm_sec = help.getSeq();
 		now_ = std::chrono::system_clock::from_time_t(std::mktime(&tm_));
 		now_ += std::chrono::milliseconds(help.getSeq());
-		putLog(log, help.getSeqStr());
-		help = {log.str()};
-		Assert::AreEqual(std::string("2001/02/03 04:05:06.007 8"), help.getLine());
+		help.setSeqBase();
+		putLog(help.getSeq<std::ostream*>(1), help.getSeqStr(2));
+		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
+		Assert::AreEqual(std::string("8"), help.getLine());
+		Assert::AreEqual(std::string("2001/02/03 04:05:06.007 9"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 }
@@ -950,13 +962,15 @@ TEST_METHOD(test_test_helper) {
 		Assert::AreEqual(std::string("Fuga"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	{ // getSeqとgetSeqStrとsetSeqBaseは正しく動作できるか？
+	{ // getSeqとgetSeqPtrとgetSeqStrとsetSeqBaseは正しく動作できるか？
 		test_helper_t help;
 		Assert::AreEqual(1, help.getSeq());
-		Assert::AreEqual(std::string("2"), help.getSeqStr());
+		Assert::AreEqual(2, int(help.getSeqPtr<int>().get()));
+		Assert::AreEqual(std::string("3"), help.getSeqStr());
 		help.setSeqBase();
-		Assert::AreEqual(12, help.getSeq(10));
-		Assert::AreEqual(std::string("13"), help.getSeqStr(11));
+		Assert::AreEqual(13, help.getSeq(10));
+		Assert::AreEqual(14, int(help.getSeqPtr<int>(11).get()));
+		Assert::AreEqual(std::string("15"), help.getSeqStr(12));
 	}
 }
 
@@ -999,6 +1013,568 @@ TEST_METHOD(test_test_trampoline) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
+}
+
+TEST_METHOD(test_thread_pool_ask) {
+	BEGIN_DEF_SPY_CLASS(thread_pool_t);
+	BEGIN_DEF_SPY_CLASS_N(thread_pool_t, work_t);
+	{ // タスクを依頼できるか？
+		test_helper_t help;
+		thread_pool_t::task_t task = [&] {
+			help << "task\n";
+		};
+		std_::condition_variable_notify_all_true = [&](
+			std::condition_variable *cv
+		) {
+			help << "condition_variable_notify_all\n";
+			help << int(cv) << '\n';
+		};
+		std_::make_unique_lock_true = [&](
+			std::mutex *mutex
+		) -> std::shared_ptr<std::unique_lock<std::mutex>> {
+			help << "make_unique_lock\n";
+			help << int(mutex) << '\n';
+			return help.getSeqPtr<std::unique_lock<std::mutex>>();
+		};
+		std_::unique_lock_unlock_true = [&](
+			std::unique_lock<std::mutex> *lock
+		) {
+			help << "unique_lock_unlock\n";
+			help << int(lock) << '\n';
+		};
+		int mutex_address;
+		int workers_cv_address;
+		int work_mutex_address;
+		int work_work_cv_address;
+		{
+			thread_pool_t thread_pool_(0);
+			spy_thread_pool_t *thread_pool = (spy_thread_pool_t*)(&thread_pool_);
+			auto work_ = thread_pool->ask(task);
+			spy_work_t *work = (spy_work_t*)(&work_);
+			Assert::AreEqual(1, int(thread_pool->data->tasks.size()));
+			Assert::AreEqual(1, int(work->data->tasks_count));
+			Assert::AreEqual(0, int(work->data->tasks_done));
+			thread_pool->data->tasks.front()();
+			Assert::AreEqual(1, int(work->data->tasks_done));
+			mutex_address = int(&thread_pool->data->mutex);
+			workers_cv_address = int(&thread_pool->data->workers_cv);
+			work_mutex_address = int(&work->data->mutex);
+			work_work_cv_address = int(&work->data->work_cv);
+		}
+		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
+		Assert::AreEqual(stringize(mutex_address), help.getLine());
+		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
+		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
+		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
+		Assert::AreEqual(std::string("task"), help.getLine());
+		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
+		Assert::AreEqual(stringize(work_mutex_address), help.getLine());
+		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
+		Assert::AreEqual(std::string("2"), help.getLine());
+		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
+		Assert::AreEqual(stringize(work_work_cv_address), help.getLine());
+		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
+		Assert::AreEqual(stringize(mutex_address), help.getLine());
+		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
+		Assert::AreEqual(std::string("3"), help.getLine());
+		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
+		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
+		Assert::AreEqual(std::string(), help.getLine());
+	}
+	{ // タスクのコンテナを依頼できるか？
+		test_helper_t help;
+		std::vector<thread_pool_t::task_t> tasks = {[&] {
+			help << "task1\n";
+		}, [&] {
+			help << "task2\n";
+		}};
+		std_::condition_variable_notify_all_true = [&](
+			std::condition_variable *cv
+		) {
+			help << "condition_variable_notify_all\n";
+			help << int(cv) << '\n';
+		};
+		std_::make_unique_lock_true = [&](
+			std::mutex *mutex
+		) -> std::shared_ptr<std::unique_lock<std::mutex>> {
+			help << "make_unique_lock\n";
+			help << int(mutex) << '\n';
+			return help.getSeqPtr<std::unique_lock<std::mutex>>();
+		};
+		std_::unique_lock_unlock_true = [&](
+			std::unique_lock<std::mutex> *lock
+		) {
+			help << "unique_lock_unlock\n";
+			help << int(lock) << '\n';
+		};
+		int mutex_address;
+		int workers_cv_address;
+		int work_mutex_address;
+		int work_work_cv_address;
+		{
+			thread_pool_t thread_pool_(0);
+			spy_thread_pool_t *thread_pool = (spy_thread_pool_t*)(&thread_pool_);
+			auto work_ = thread_pool->ask(tasks);
+			spy_work_t *work = (spy_work_t*)(&work_);
+			Assert::AreEqual(2, int(thread_pool->data->tasks.size()));
+			Assert::AreEqual(2, int(work->data->tasks_count));
+			Assert::AreEqual(0, int(work->data->tasks_done));
+			thread_pool->data->tasks.front()();
+			Assert::AreEqual(1, int(work->data->tasks_done));
+			thread_pool->data->tasks.pop();
+			thread_pool->data->tasks.front()();
+			Assert::AreEqual(2, int(work->data->tasks_done));
+			mutex_address = int(&thread_pool->data->mutex);
+			workers_cv_address = int(&thread_pool->data->workers_cv);
+			work_mutex_address = int(&work->data->mutex);
+			work_work_cv_address = int(&work->data->work_cv);
+		}
+		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
+		Assert::AreEqual(stringize(mutex_address), help.getLine());
+		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
+		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
+		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
+		Assert::AreEqual(std::string("task1"), help.getLine());
+		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
+		Assert::AreEqual(stringize(work_mutex_address), help.getLine());
+		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
+		Assert::AreEqual(std::string("2"), help.getLine());
+		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
+		Assert::AreEqual(stringize(work_work_cv_address), help.getLine());
+		Assert::AreEqual(std::string("task2"), help.getLine());
+		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
+		Assert::AreEqual(stringize(work_mutex_address), help.getLine());
+		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
+		Assert::AreEqual(std::string("3"), help.getLine());
+		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
+		Assert::AreEqual(stringize(work_work_cv_address), help.getLine());
+		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
+		Assert::AreEqual(stringize(mutex_address), help.getLine());
+		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
+		Assert::AreEqual(std::string("4"), help.getLine());
+		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
+		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
+		Assert::AreEqual(std::string(), help.getLine());
+	}
+	END_DEF_SPY_CLASS(work_t);
+	END_DEF_SPY_CLASS(thread_pool_t);
+}
+
+TEST_METHOD(test_thread_pool_multithread) {
+	using lock_t = std::unique_lock<std::mutex>;
+	std_::condition_variable_notify_all_true = std_::condition_variable_notify_all_DEF;
+	std_::condition_variable_wait_true = std_::condition_variable_wait_DEF;
+	std_::make_thread_true = std_::make_thread_DEF;
+	std_::make_unique_lock_true = std_::make_unique_lock_DEF;
+	std_::thread_join_true = std_::thread_join_DEF;
+	std_::unique_lock_unlock_true = std_::unique_lock_unlock_DEF;
+	{ // １個のタスクを非同期実行できるか？
+		thread_pool_t thread_pool;
+		int result = 0;
+		std::mutex mutex;
+		std::condition_variable cv;
+		bool go = false;
+		thread_pool_t::task_t task = [&] {
+			auto lock = std_::make_unique_lock(&mutex);
+			std_::condition_variable_wait(&cv, lock.get(), [&]() -> bool {
+				return go;
+			});
+			result = 1 + 2;
+		};
+		auto work = thread_pool.ask(task);
+		Assert::IsFalse(work.isDone());
+		go = true;
+		std_::condition_variable_notify_all(&cv);
+		work.waitUntilDone();
+		Assert::IsTrue(work.isDone());
+		Assert::AreEqual(3, result);
+	}
+	{ // ５個のタスクを非同期実行できるか？
+	  // indexが2->4->0->3->1の順で計算する。
+		thread_pool_t thread_pool;
+		int result = 0;
+		std::mutex mutex;
+		std::condition_variable cv;
+		int index = 5;
+		std::vector<thread_pool_t::task_t> tasks;
+		tasks.emplace_back([&] {
+			auto lock = std_::make_unique_lock(&mutex);
+			std_::condition_variable_wait(&cv, lock.get(), [&]() -> bool {
+				return index == 0;
+			});
+			result += 3;
+			index = 3;
+			std_::condition_variable_notify_all(&cv);
+		});
+		tasks.emplace_back([&] {
+			auto lock = std_::make_unique_lock(&mutex);
+			std_::condition_variable_wait(&cv, lock.get(), [&]() -> bool {
+				return index == 1;
+			});
+			result += 5;
+			index = 5;
+			std_::condition_variable_notify_all(&cv);
+		});
+		tasks.emplace_back([&] {
+			auto lock = std_::make_unique_lock(&mutex);
+			std_::condition_variable_wait(&cv, lock.get(), [&]() -> bool {
+				return index == 2;
+			});
+			result += 1;
+			index = 4;
+			std_::condition_variable_notify_all(&cv);
+		});
+		tasks.emplace_back([&] {
+			auto lock = std_::make_unique_lock(&mutex);
+			std_::condition_variable_wait(&cv, lock.get(), [&]() -> bool {
+				return index == 3;
+			});
+			result *= 4;
+			index = 1;
+			std_::condition_variable_notify_all(&cv);
+		});
+		tasks.emplace_back([&] {
+			auto lock = std_::make_unique_lock(&mutex);
+			std_::condition_variable_wait(&cv, lock.get(), [&]() -> bool {
+				return index == 4;
+			});
+			result *= 2;
+			index = 0;
+			std_::condition_variable_notify_all(&cv);
+		});
+		auto work = thread_pool.ask(tasks);
+		Assert::IsFalse(work.isDone());
+		index = 2;
+		std_::condition_variable_notify_all(&cv);
+		work.waitUntilDone();
+		Assert::IsTrue(work.isDone());
+		Assert::AreEqual(25, result);
+	}
+	{ // 10×10個のタスクを非同期実行できるか？
+		static const int N = 10;
+		thread_pool_t thread_pool(10);
+		int result[N][N];
+		thread_pool_t::work_t works[N];
+		for (int i = 0; i < N; ++i) {
+			std::vector<thread_pool_t::task_t> tasks;
+			for (int j = 0; j < N; ++j)
+				tasks.emplace_back([&result, i, j] {
+					result[i][j] = N * i + j;
+				});
+			works[i] = thread_pool.ask(tasks);
+		}
+		for (int i = 0; i < N; ++i) {
+			works[i].waitUntilDone();
+			Assert::IsTrue(works[i].isDone());
+			for (int j = 0; j < N; ++j) 
+				Assert::AreEqual(N * i + j, result[i][j]);
+		}
+	}
+}
+
+TEST_METHOD(test_thread_pool_new) {
+	BEGIN_DEF_SPY_CLASS(thread_pool_t);
+	{ // ワーカースレッドの数を省略したときに正しく動作できるか？
+		test_helper_t help;
+		std_::condition_variable_notify_all_true = [&](
+			std::condition_variable *cv
+		) {
+			help << "condition_variable_notify_all\n";
+			help << int(cv) << '\n';
+		};
+		std_::make_thread_true = [&](
+			const std::function<void()> &proc
+		) -> std::shared_ptr<std::thread> {
+			help << "make_thread\n";
+			return help.getSeqPtr<std::thread>();
+		};
+		std_::make_unique_lock_true = [&](
+			std::mutex *mutex
+		) -> std::shared_ptr<std::unique_lock<std::mutex>> {
+			help << "make_unique_lock\n";
+			help << int(mutex) << '\n';
+			return help.getSeqPtr<std::unique_lock<std::mutex>>();
+		};
+		std_::thread_join_true = [&](std::thread *thread) {
+			help << "thread_join\n";
+			help << int(thread) << '\n';
+		};
+		std_::unique_lock_unlock_true = [&](
+			std::unique_lock<std::mutex> *lock
+		) {
+			help << "unique_lock_unlock\n";
+			help << int(lock) << '\n';
+		};
+		int mutex_address;
+		int workers_cv_address;
+		{
+			thread_pool_t thread_pool_;
+			spy_thread_pool_t *thread_pool = (spy_thread_pool_t*)(&thread_pool_);
+			Assert::AreEqual(HARDWARE_CONCURRENCY, thread_pool->data->workers.size());
+			for (std::size_t i = 0; i < HARDWARE_CONCURRENCY; ++i)
+				Assert::AreEqual(int(i + 1), int(thread_pool->data->workers[i].get()));
+			for (std::size_t i = 0; i < HARDWARE_CONCURRENCY; ++i)
+				Assert::AreEqual(std::string("make_thread"), help.getLine());
+			mutex_address = int(&thread_pool->data->mutex);
+			workers_cv_address = int(&thread_pool->data->workers_cv);
+		}
+		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
+		Assert::AreEqual(stringize(mutex_address), help.getLine());
+		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
+		Assert::AreEqual(std::string("7"), help.getLine());
+		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
+		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
+		for (std::size_t i = 0; i < HARDWARE_CONCURRENCY; ++i) {
+			Assert::AreEqual(std::string("thread_join"), help.getLine());
+			Assert::AreEqual(stringize(i + 1), help.getLine());
+		}
+		Assert::AreEqual(std::string(), help.getLine());
+	}
+	{ // ワーカースレッドの数を指定したときに正しく動作できるか？
+		test_helper_t help;
+		std_::condition_variable_notify_all_true = [&](
+			std::condition_variable *cv
+		) {
+			help << "condition_variable_notify_all\n";
+			help << int(cv) << '\n';
+		};
+		std_::make_thread_true = [&](
+			const std::function<void()> &proc
+		) -> std::shared_ptr<std::thread> {
+			help << "make_thread\n";
+			return help.getSeqPtr<std::thread>();
+		};
+		std_::make_unique_lock_true = [&](
+			std::mutex *mutex
+		) -> std::shared_ptr<std::unique_lock<std::mutex>> {
+			help << "make_unique_lock\n";
+			help << int(mutex) << '\n';
+			return help.getSeqPtr<std::unique_lock<std::mutex>>();
+		};
+		std_::thread_join_true = [&](std::thread *thread) {
+			help << "thread_join\n";
+			help << int(thread) << '\n';
+		};
+		std_::unique_lock_unlock_true = [&](
+			std::unique_lock<std::mutex> *lock
+		) {
+			help << "unique_lock_unlock\n";
+			help << int(lock) << '\n';
+		};
+		int mutex_address;
+		int workers_cv_address;
+		{
+			thread_pool_t thread_pool_(10);
+			spy_thread_pool_t *thread_pool = (spy_thread_pool_t*)(&thread_pool_);
+			Assert::AreEqual(10, int(thread_pool->data->workers.size()));
+			for (std::size_t i = 0; i < 10; ++i)
+				Assert::AreEqual(int(i + 1), int(thread_pool->data->workers[i].get()));
+			for (std::size_t i = 0; i < 10; ++i)
+				Assert::AreEqual(std::string("make_thread"), help.getLine());
+			mutex_address = int(&thread_pool->data->mutex);
+			workers_cv_address = int(&thread_pool->data->workers_cv);
+		}
+		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
+		Assert::AreEqual(stringize(mutex_address), help.getLine());
+		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
+		Assert::AreEqual(std::string("11"), help.getLine());
+		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
+		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
+		for (std::size_t i = 0; i < 10; ++i) {
+			Assert::AreEqual(std::string("thread_join"), help.getLine());
+			Assert::AreEqual(stringize(i + 1), help.getLine());
+		}
+		Assert::AreEqual(std::string(), help.getLine());
+	}
+	END_DEF_SPY_CLASS(thread_pool_t);
+}
+
+TEST_METHOD(test_thread_pool_work_isDone) {
+	BEGIN_DEF_SPY_CLASS_N(thread_pool_t, work_t);
+	{ // 正しく動作できるか？
+		test_helper_t help;
+		spy_work_t work;
+		work.data->tasks_count = 1;
+		std_::make_unique_lock_true = [&](
+			std::mutex *mutex
+		) -> std::shared_ptr<std::unique_lock<std::mutex>> {
+			help << "make_unique_lock\n";
+			help << int(mutex) << '\n';
+			return help.getSeqPtr<std::unique_lock<std::mutex>>();
+		};
+		work.data->tasks_done = 0;
+		Assert::IsFalse(work.isDone());
+		work.data->tasks_done = 1;
+		Assert::IsTrue(work.isDone());
+		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
+		Assert::AreEqual(stringize(int(&work.data->mutex)), help.getLine());
+		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
+		Assert::AreEqual(stringize(int(&work.data->mutex)), help.getLine());
+		Assert::AreEqual(std::string(), help.getLine());
+	}
+	END_DEF_SPY_CLASS(work_t);
+}
+
+TEST_METHOD(test_thread_pool_work_onTaskDone) {
+	BEGIN_DEF_SPY_CLASS_N(thread_pool_t, work_t);
+	{ // 正しく動作できるか？
+		test_helper_t help;
+		spy_work_t work;
+		std_::condition_variable_notify_all_true = [&](
+			std::condition_variable *cv
+		) {
+			help << "condition_variable_notify_all\n";
+			help << int(cv) << '\n';
+		};
+		std_::make_unique_lock_true = [&](
+			std::mutex *mutex
+		) -> std::shared_ptr<std::unique_lock<std::mutex>> {
+			help << "make_unique_lock\n";
+			help << int(mutex) << '\n';
+			return help.getSeqPtr<std::unique_lock<std::mutex>>();
+		};
+		std_::unique_lock_unlock_true = [&](
+			std::unique_lock<std::mutex> *lock
+		) {
+			help << "unique_lock_unlock\n";
+			help << int(lock) << '\n';
+		};
+		work.onTaskDone();
+		Assert::AreEqual(1, int(work.data->tasks_done));
+		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
+		Assert::AreEqual(stringize(int(&work.data->mutex)), help.getLine());
+		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
+		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
+		Assert::AreEqual(stringize(int(&work.data->work_cv)), help.getLine());
+		Assert::AreEqual(std::string(), help.getLine());
+	}
+	END_DEF_SPY_CLASS(work_t);
+}
+
+TEST_METHOD(test_thread_pool_work_waitUntilDone) {
+	BEGIN_DEF_SPY_CLASS_N(thread_pool_t, work_t);
+	{ // 正しく動作できるか？
+		test_helper_t help;
+		spy_work_t work;
+		work.data->tasks_count = 1;
+		std_::condition_variable_wait_true = [&](
+			std::condition_variable *cv, 
+			std::unique_lock<std::mutex> *lock, 
+			const std::function<bool()> &pred
+		) {
+			help << "condition_variable_wait\n";
+			help << int(cv) << '\n';
+			help << int(lock) << '\n';
+			work.data->tasks_done = 0;
+			help << pred() << '\n';
+			work.data->tasks_done = 1;
+			help << pred() << '\n';
+		};
+		std_::make_unique_lock_true = [&](
+			std::mutex *mutex
+		) -> std::shared_ptr<std::unique_lock<std::mutex>> {
+			help << "make_unique_lock\n";
+			help << int(mutex) << '\n';
+			return help.getSeqPtr<std::unique_lock<std::mutex>>();
+		};
+		work.waitUntilDone();
+		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
+		Assert::AreEqual(stringize(int(&work.data->mutex)), help.getLine());
+		Assert::AreEqual(std::string("condition_variable_wait"), help.getLine());
+		Assert::AreEqual(stringize(int(&work.data->work_cv)), help.getLine());
+		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(std::string("0"), help.getLine());
+		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(std::string(), help.getLine());
+	}
+	END_DEF_SPY_CLASS(work_t);
+}
+
+TEST_METHOD(test_thread_pool_worker_procedure) {
+	BEGIN_DEF_SPY_CLASS(thread_pool_t);
+	{
+		test_helper_t help;
+		spy_thread_pool_t *thread_pool;
+		int index = 0;
+		thread_pool_t::task_t task = [&] {
+			help << "task\n";
+		};
+		std_::condition_variable_notify_all_true = [&](
+			std::condition_variable *cv
+		) {
+			help << "condition_variable_notify_all\n";
+			help << int(cv) << '\n';
+		};
+		std_::condition_variable_wait_true = [&](
+			std::condition_variable *cv, 
+			std::unique_lock<std::mutex> *lock, 
+			const std::function<bool()> &pred
+		) {
+			help << "condition_variable_wait\n";
+			help << int(cv) << '\n';
+			help << int(lock) << '\n';
+			if (index == 0) {
+				help << pred() << '\n';
+				thread_pool->data->tasks.push(task);
+				help << pred() << '\n';
+			} else if (index == 1) {
+				help << pred() << '\n';
+				thread_pool->data->leave = true;
+				help << pred() << '\n';
+			} else Assert::Fail();
+			++index;
+		};
+		std_::make_unique_lock_true = [&](
+			std::mutex *mutex
+		) -> std::shared_ptr<std::unique_lock<std::mutex>> {
+			help << "make_unique_lock\n";
+			help << int(mutex) << '\n';
+			return help.getSeqPtr<std::unique_lock<std::mutex>>();
+		};
+		std_::unique_lock_unlock_true = [&](
+			std::unique_lock<std::mutex> *lock
+		) {
+			help << "unique_lock_unlock\n";
+			help << int(lock) << '\n';
+		};
+		int mutex_address;
+		int workers_cv_address;
+		{
+			thread_pool_t thread_pool_(0);
+			thread_pool = (spy_thread_pool_t*)(&thread_pool_);
+			thread_pool->worker_procedure();
+			mutex_address = int(&thread_pool->data->mutex);
+			workers_cv_address = int(&thread_pool->data->workers_cv);
+		}
+		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
+		Assert::AreEqual(stringize(mutex_address), help.getLine());
+		Assert::AreEqual(std::string("condition_variable_wait"), help.getLine());
+		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
+		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(std::string("0"), help.getLine());
+		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
+		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(std::string("task"), help.getLine());
+		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
+		Assert::AreEqual(stringize(mutex_address), help.getLine());
+		Assert::AreEqual(std::string("condition_variable_wait"), help.getLine());
+		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
+		Assert::AreEqual(std::string("2"), help.getLine());
+		Assert::AreEqual(std::string("0"), help.getLine());
+		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
+		Assert::AreEqual(stringize(mutex_address), help.getLine());
+		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
+		Assert::AreEqual(std::string("3"), help.getLine());
+		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
+		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
+		Assert::AreEqual(std::string(), help.getLine());
+	}
+	END_DEF_SPY_CLASS(thread_pool_t);
 }
 
 TEST_METHOD(test_window_getClientRect) {

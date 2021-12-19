@@ -103,7 +103,8 @@ void loadPlugins() {
 	for (const named_value_t &plugin_key : plugin_keys) {
 		// キーの値で示されているロードフラグが真なら、
 		// キーの名前で示されているDLLファイルをロードする。
-		if (destringize<bool>(plugin_key.value)) loadPlugin(plugin_key.name);
+		if (destringize<bool>(plugin_key.value, false)) 
+			loadPlugin(plugin_key.name);
 	}
 }
 
@@ -144,7 +145,7 @@ onProcessAttach(
 		loadTrueDLL();
 		loadPlugins();
 	} catch (const error &err) {
-		if (context.log) putLog(*context.log, err.getMessage());
+		if (context.log) putLog(context.log.get(), err.getMessage());
 		return FALSE;
 	}
 	return TRUE;

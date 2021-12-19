@@ -16,6 +16,8 @@
 
 #include <windows.h>
 
+#include <condition_variable>
+#include <cstddef>
 #include <filesystem>
 #include <functional>
 #include <ios>
@@ -23,11 +25,48 @@
 #include <ostream>
 #include <map>
 #include <memory>
+#include <mutex>
+#include <queue>
 #include <sstream>
 #include <string>
+#include <thread>
+#include <utility>
 #include <vector>
 
+//// マクロの定義
+
+// スパイクラスの定義を開始する。
+// スパイクラスは単体テスト関数内で定義する。対象とするクラスを
+// 継承することで、protectedメンバにアクセスできるようにする。
+#define BEGIN_DEF_SPY_CLASS(\
+	target /* テストの対象となるクラスの名前。 */\
+) \
+	struct spy_ ## target : public target {\
+		static void procedure() {
+
+// スパイクラスの定義を名前空間付きで開始する。
+// スパイクラスは単体テスト関数内で定義する。対象とするクラスを
+// 継承することで、protectedメンバにアクセスできるようにする。
+#define BEGIN_DEF_SPY_CLASS_N(\
+	namespace_, /* テストの対象となるクラスの名前空間。 */\
+	target      /* テストの対象となるクラスの名前。 */\
+) \
+	struct spy_ ## target : public namespace_::target {\
+		static void procedure() {
+
+// スパイクラスの定義を終了する。
+#define END_DEF_SPY_CLASS(\
+	target /* テストの対象となるクラスの名前。 */\
+) \
+		}\
+	};\
+	spy_ ## target::procedure();
+
 namespace jeq {
+
+// 定数の宣言。
+
+extern const std::size_t HARDWARE_CONCURRENCY;
 
 //// 型の定義
 
@@ -98,6 +137,8 @@ public:
 	std::string getLine();
 	template <class X = int>
 	X getSeq(std::size_t offset = 0);
+	template <class X>
+	std::shared_ptr<X> getSeqPtr(std::size_t offset = 0);
 	std::string &getSeqStr(std::size_t offset = 0);
 	template <typename X>
 	test_helper_t &operator <<(const X &x);
@@ -143,15 +184,89 @@ struct test_trampoline_t {
 	Ret trampoline_member(Args ...args);
 };
 
+// スレッドプールを表す。
+// タスクの実行を依頼すると、プーリングされているスレッドの中から
+// 待機中のスレッドを目覚めさせて、そのスレッド上で非同期に実行する。
+/* サンプルコード
+// スレッドプールを作成する。
+thread_pool_t thread_pool;
+// 加算を行うタスクを作成する。
+int result;
+thread_pool_t::task_t task = [&result] {
+	result = 1 + 2;
+};
+// タスクの非同期実行を依頼する。
+auto work = thread_pool.ask(task);
+...
+// ワーク(この例ではタスク１個のみ）の実行が完了するまで待機する。
+work.waitUntilDone();
+// 結果を出力する。
+std::cout << result << std::endl;
+*/
+class thread_pool_t {
+public:
+	// タスクの型。
+	using task_t = std::function<void()>;
+
+	// 実行中のタスクのグループを表す。
+	class work_t {
+		friend thread_pool_t;
+	public:
+		work_t() = default;
+		bool isDone() const;
+		void waitUntilDone();
+	protected:
+		// インスタンスデータを表す。
+		struct data_t {
+			std::mutex mutex;            // 排他制御のためのミューテックス。
+			std::size_t tasks_done = 0;  // 完了したタスクの数。
+			std::size_t tasks_count = 0; // タスクの数。
+			std::condition_variable 
+				work_cv;                 // ワークに通知するための条件変数。
+		};
+
+		std::shared_ptr<data_t> data = std::make_shared<data_t>(); // インスタンスデータ。
+
+		explicit work_t(std::size_t tasks_count);
+		void onTaskDone();
+	};
+
+	explicit thread_pool_t(std::size_t workers_count = HARDWARE_CONCURRENCY);
+	template <class Container>
+	work_t ask(const Container &tasks);
+	work_t ask(const task_t &task);
+protected:
+	// ロックの型。
+	using lock_t = std::unique_lock<std::mutex>;
+
+	// インスタンスデータを表す。
+	struct data_t {
+		bool leave = false;       // 離脱フラグ。
+		                          // セットならワーカーが処理から離脱する。
+		std::mutex mutex;         // 排他制御のためのミューテックス。
+		std::queue<task_t> tasks; // タスクのキュー。
+		std::vector<std::shared_ptr<std::thread>> 
+			workers;              // ワーカーのベクタ。
+		std::condition_variable 
+			workers_cv;           // ワーカーに通知するための条件変数。
+
+		~data_t();
+	};
+
+	std::shared_ptr<data_t> data = std::make_shared<data_t>(); // インスタンスデータ。
+
+	void worker_procedure();
+};
+
 //// テンプレート関数とインライン関数の宣言
 
 inline bool char_isJLead(char chr);
 template <class X>
 void clampByMin(X &value, const X &min);
-template <class X, X DEF_X = X()>
-X destringize(const std::string &str);
-template <class X, X DEF_X = X(), class Manip>
-X destringize(const std::string &str, Manip &&manip);
+template <class X>
+X destringize(const std::string &str, X def);
+template <class X, class Manip>
+X destringize(const std::string &str, X def, Manip &&manip);
 inline BYTE getCtrlAlphabetKey(char alphabet);
 template <class PostX, class PreX>
 PostX indirect_cast(PreX x);
@@ -180,10 +295,10 @@ Container<std::string> string_split(const std::string &str,	char delim,	bool all
 
 //// 非公開なテンプレート関数とインライン関数の宣言
 
-template <class X, X DEF_X = X()>
-X _destringizeFrom(std::istream &in, const std::string &str);
-template <class X, X DEF_X = X(), class Manip>
-X _destringizeFrom(std::istream &in, const std::string &str, Manip &&manip);
+template <class X>
+X _destringizeFrom(std::istream &in, X def);
+template <class X, class Manip>
+X _destringizeFrom(std::istream &in, X def, Manip &&manip);
 template <class X>
 void _stringizeTo(std::ostream &out, const X &x);
 template <class X, class Manip>
@@ -203,7 +318,7 @@ void ini_setKeyValue(const std::filesystem::path &ini_path, const std::string &s
 std::filesystem::path module_getPath(HMODULE hmod);
 POINT point_clientToScreen(POINT pos, HWND hwnd);
 POINT point_screenToClient(POINT pos, HWND hwnd);
-void putLog(std::ostream &log, const std::string &mes);
+void putLog(std::ostream *log, const std::string &mes);
 bool rect_areOverlapped(const RECT &rect1, const RECT &rect2);
 std::string string_printf(const char *fmt, ...);
 std::string string_sjisToUtf8(const std::string &src);
@@ -248,8 +363,8 @@ scope_exit_t::data_t::~data_t() {
 // テストヘルパーから次の連番を取得する。
 // 連番は1から始まるので注意すること。
 template <
-	class X // 連番の型。
-> X // 取得した連番。
+	class X // 何かの型。
+> X // 取得した連番をキャストした何か。
 test_helper_t::getSeq(
 	std::size_t offset // ベースからのオフセット。
 	                   // ゼロなら最新の連番。省略ならゼロ。
@@ -259,6 +374,18 @@ test_helper_t::getSeq(
 	if (offset) seq = data->seq_base + offset;
 	else seq = data->seq;
 	return X(seq);
+}
+
+// テストヘルパーから次の連番を何かのアドレスとするポインタを取得する。
+// ポインタのデリータは何もしない。
+template <
+	class X // 何かの型。
+> std::shared_ptr<X> // 取得した連番を何かのアドレスとするポインタ。
+test_helper_t::getSeqPtr(
+	std::size_t offset // ベースからのオフセット。
+                       // ゼロなら最新の連番。省略ならゼロ。
+) {
+	return std::shared_ptr<X>(getSeq<X*>(offset), [](X*) {});
 }
 
 // テストヘルパーに何かを記録する。
@@ -311,6 +438,30 @@ test_trampoline_t<Ret,Args...>::trampoline_member(
 	return target(args...);
 }
 
+// スレッドプールにタスクコンテナの非同期実行を依頼する。
+template <
+	class Container // タスクコンテナの型。
+> thread_pool_t::work_t // 作成したワーク。
+thread_pool_t::ask(
+	const Container &tasks // 非同期実行するタスクのコンテナ。
+) {
+	// タスクが所属するワークを作成する。
+	work_t work(tasks.size());
+	// タスクをキューにプッシュする。
+	auto lock = std_::make_unique_lock(&data->mutex);
+	for (const task_t &task : tasks)
+		data->tasks.push([work, task]() mutable {
+			// このラムダはワーカースレッドで非同期に実行される。
+			// タスク本体を実行し、完了したらハンドラを呼び出す。
+			task();
+			work.onTaskDone();
+		});
+	std_::unique_lock_unlock(lock.get());
+	// ワーカーを目覚めさせて、キューにプッシュしたタスクを実行させる。
+	std_::condition_variable_notify_all(&data->workers_cv);
+	return work;
+}
+
 //// テンプレート関数とインライン関数の定義
 
 // 文字がシフトJISの1バイト目かどうかを判定する。
@@ -336,38 +487,38 @@ void clampByMin(
 // 文字列を何かに変換する。
 /* サンプルコード
 // 文字列を整数に変換する。
-int num = destringize<int>("123");
+int num = destringize<int>("123", 0);
 */
 template <
-	class X, // 何かの型。
-	X DEF_X  // 変換に失敗したときの既定値。省略するとX()。
-> X // 変換した何か。
+	class X // 何かの型。
+> X // 変換した何か。失敗したときは既定値。
 destringize(
-	const std::string &str // 変換する文字列。
+	const std::string &str, // 変換する文字列。
+	X def                   // 既定値。
 ) {
 	if (str.empty()) return X();
 	std::istringstream in(str);
-	return _destringizeFrom<X,DEF_X>(in, str);
+	return _destringizeFrom<X>(in, def);
 }
 
 // 文字列を何かに変換する。
 // また変換の方法をマニピュレータで指定する。
 /* サンプルコード
 // 16進数の文字列を整数に変換する。
-int num = destringize<int>("abc", std::hex);
+int num = destringize<int>("abc", 0, std::hex);
 */
 template <
 	class X,    // 何かの型。
-	X DEF_X,    // 変換に失敗したときの既定値。省略するとX()。
 	class Manip // マニピュレータの型。
-> X 
+> X // 変換した何か。失敗したときは既定値。
 destringize(
 	const std::string &str, // 変換する文字列。
+	X def,                  // 既定値。
 	Manip &&manip           // マニピュレータ。
 ) {
 	if (str.empty()) return X();
 	std::istringstream in(str);
-	return _destringizeFrom<X,DEF_X>(in, str, manip);
+	return _destringizeFrom<X>(in, def, manip);
 }
 
 // Ctrl+アルファベットの仮想キーコードを取得する。
@@ -452,8 +603,7 @@ ini_parseSection(
 // マップから探す。
 template <
 	class Map // マップの型。
-> typename Map::mapped_type // 見つかったマップ値、
-                            // 見つからなかったら既定値を返す。
+> typename Map::mapped_type // 見つかったマップ値。見つからなかったら既定値。
 map_find(
 	const Map &map,                             // マップ。
 	const typename Map::key_type &key,          // 探すキー。
@@ -483,7 +633,7 @@ namedValuesToMap(
 // 引数は何個でも記述可能で、引数と引数の間はスペースで区切る。
 // 引数1 引数2 ... 引数n
 // それぞれ引数は次のような形式になる。
-// NAME[=VALUE]
+// "NAME[=VALUE]"
 // ここでNAMEは引数の名前、VALUEは引数の値を示す。
 // 名前と値にスペース(' ')とイコール('=')を含めたいときは、
 // それらを含む文字列を引用符('"')で囲む。
@@ -681,41 +831,74 @@ string_split(
 
 //// 非公開なテンプレート関数とインライン関数の定義
 
-template <class X, X DEF_X>
-X _destringizeFrom(std::istream &in, const std::string &str) {
+// ストリームから何かを入力する。
+template <
+	class X // 何かの型。
+> X // 入力した何か。失敗したときは既定値。
+_destringizeFrom(
+	std::istream &in, // 入力ストリーム。
+	X def             // 既定値。
+) {
 	X x;
 	in.exceptions(std::ios_base::failbit);
 	try {
 		in >> x;
 	} catch (const std::ios_base::failure&) {
-		x = DEF_X;
+		x = def;
 	}
 	return x;
 }
 
-template <class X, X DEF_X, class Manip>
-X _destringizeFrom(std::istream &in, const std::string &str, Manip &&manip) {
+// ストリームから何かを入力する。
+// また入力の方法をマニピュレータで指定する。
+template <
+	class X,    // 何かの型。
+	class Manip // マニピュレータの型。
+> X // 入力した何か。失敗したときは既定値。
+_destringizeFrom(
+	std::istream &in, // 入力ストリーム。
+	X def,            // 既定値。
+	Manip &&manip     // マニピュレータ。
+) {
 	in >> manip;
-	return _destringizeFrom<X,DEF_X>(in, str);
+	return _destringizeFrom<X>(in, def);
 }
 
-template <class X>
-void _stringizeTo(std::ostream &out, const X &x) {
+// 何かをストリームに出力する。
+template <
+	class X // 何かの型。
+> void _stringizeTo(
+	std::ostream &out, // 出力ストリーム。
+	const X &x         // 出力する何か。
+) {
 	out << x;
 }
 
-template <class X, class Manip>
-void _stringizeTo(std::ostream &out, const X &x, Manip &&manip) {
+// 何かをストリームに出力する。
+// また出力の方法をマニピュレータで指定する。
+template <
+	class X,    // 何かの型。
+	class Manip // マニピュレータの型。
+> void _stringizeTo(
+	std::ostream &out, // 出力ストリーム。
+	const X &x,        // 出力する何か。
+	Manip &&manip      // マニピュレータ。
+) {
 	out << manip;
 	_stringizeTo(out, x);
 }
 
-template <class X, class Lead, class ...Trails>
-void _stringizeTo(
-	std::ostream &out, 
-	const X &x, 
-	Lead &&lead, 
-	Trails &&...trails
+// 何かをストリームに出力する。
+// また出力の方法を複数のマニピュレータで指定する。
+template <
+	class X,        // 何かの型。
+	class Lead,     // 1個目のマニピュレータの型。
+	class ...Trails // 2個目以降のマニピュレータの型。
+> void _stringizeTo(
+	std::ostream &out, // 出力ストリーム。
+	const X &x,        // 出力する何か。
+	Lead &&lead,       // 1個目のマニピュレータ。
+	Trails &&...trails // 2個目以降のマニピュレータ。
 ) {
 	out << lead;
 	_stringizeTo(out, x, trails...);

@@ -9,21 +9,11 @@
 
 #include <cstddef>
 #include <cstring>
-#include <fstream>
 #include <functional>
 #include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
-
-#define BEGIN_JCHAT_BAR_TEST() \
-	struct test_jchat_bar_t : public jchat_bar_t {\
-		static void run() {
-
-#define END_JCHAT_BAR_TEST() \
-		}\
-	};\
-	test_jchat_bar_t::run();
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 using namespace jeq;
@@ -32,12 +22,12 @@ TEST_CLASS(jchat_test) {
 
 TEST_METHOD(test_DispatchMessage_detour) {
 	using test_DispatchMessage_t = test_trampoline_t<LRESULT,const MSG*>;
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 日本語チャットバーがアクティブではないときに正しく動作できるか？
 		test_helper_t help;
 		DispatchMessage_target = &test_DispatchMessage_t::trampoline_api;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = HWND(101);
 		test_DispatchMessage_t::target = [&](const MSG *msg) -> LRESULT {
 			help << "DispatchMessage\n";
@@ -58,7 +48,7 @@ TEST_METHOD(test_DispatchMessage_detour) {
 		test_helper_t help;
 		DispatchMessage_target = &test_DispatchMessage_t::trampoline_api;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = HWND(101);
 		test_DispatchMessage_t::target = [&](const MSG *msg) -> LRESULT {
 			help << "DispatchMessage\n";
@@ -82,7 +72,7 @@ TEST_METHOD(test_DispatchMessage_detour) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_bindAddressAndDetourAttach_early) {
@@ -399,7 +389,7 @@ TEST_METHOD(test_bindAddressAndDetourAttach_lazy) {
 }
 
 TEST_METHOD(test_context_fail) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // jchat.logの出力ストリームがないときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
@@ -419,8 +409,7 @@ TEST_METHOD(test_context_fail) {
 	{ // jchat.logの出力ストリームがあるときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto log = std::make_shared<std::ostringstream>();
-		context.log = log;
+		context.log = help.getSeqPtr<std::ostream>();
 		dtr::DetourTransactionBegin_true = [&]() -> LONG {
 			help << "DetourTransactionBegin\n";
 			return NO_ERROR;
@@ -429,19 +418,27 @@ TEST_METHOD(test_context_fail) {
 			help << "DetourTransactionCommit\n";
 			return NO_ERROR;
 		};
+		std_::ostream_putLine_true = [&](
+			const std::ostream *out,
+			const std::string &line
+		) {
+			help << "ostream_putLine\n";
+			help << int(out) << '\n';
+			help << line << '\n';
+		};
 		context.fail(error(help.getSeqStr()));
+		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
+		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(std::string("2"), help.getLine().substr(24));
 		Assert::AreEqual(std::string("DetourTransactionBegin"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionCommit"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
-		help = {log->str()};
-		Assert::AreEqual(std::string("1"), help.getLine().substr(24));
-		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_context_release) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // jchat.logの出力ストリームがないときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
@@ -461,9 +458,8 @@ TEST_METHOD(test_context_release) {
 	{ // DetachのCommitに失敗したときに失敗できるか？
 		test_helper_t help;
 		context = {};
-		auto log = std::make_shared<std::ostringstream>();
-		context.log = log;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		context.log = help.getSeqPtr<std::ostream>();
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		context.detour_exits.emplace_back([&] {
 			help << "detour_exits_procedure\n";
@@ -471,6 +467,11 @@ TEST_METHOD(test_context_release) {
 		context.exits.emplace_back([&] {
 			help << "exits_procedure\n";
 		});
+		api::DestroyWindow = [&](HWND hWnd) -> BOOL {
+			help << "DestroyWindow\n";
+			help << int(hWnd) << '\n';
+			return TRUE;
+		};
 		dtr::DetourTransactionAbort = [&]() -> LONG {
 			help << "DetourTransactionAbort\n";
 			return NO_ERROR;
@@ -483,33 +484,35 @@ TEST_METHOD(test_context_release) {
 			help << "DetourTransactionCommit\n";
 			return ERROR_INVALID_OPERATION;
 		};
-		api::DestroyWindow = [&](HWND hWnd) -> BOOL {
-			help << "DestroyWindow\n";
-			help << int(hWnd) << '\n';
-			return TRUE;
+		std_::ostream_putLine_true = [&](
+			const std::ostream *out,
+			const std::string &line
+		) {
+			help << "ostream_putLine\n";
+			help << int(out) << '\n';
+			help << line << '\n';
 		};
 		context.release();
 		Assert::AreEqual(0, int(context.detour_exits.size()));
-		Assert::IsFalse(bool(context.log));
+		Assert::AreEqual(0, int(context.log.get()));
 		Assert::AreEqual(0, int(context.exits.size()));
 		Assert::AreEqual(std::string("DestroyWindow"), help.getLine());
-		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(std::string("2"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionBegin"), help.getLine());
 		Assert::AreEqual(std::string("detour_exits_procedure"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionCommit"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionAbort"), help.getLine());
-		Assert::AreEqual(std::string("exits_procedure"), help.getLine());
-		Assert::AreEqual(std::string(), help.getLine());
-		help = {log->str()};
+		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
+		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::dtr::DetourTransactionCommit", ERROR_INVALID_OPERATION), help.getLine().substr(24));
+		Assert::AreEqual(std::string("exits_procedure"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto log = std::make_shared<std::ostringstream>();
-		context.log = log;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		context.log = help.getSeqPtr<std::ostream>();
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		context.detour_exits.emplace_back([&] {
 			help << "detour_exits_procedure\n";
@@ -532,19 +535,17 @@ TEST_METHOD(test_context_release) {
 		};
 		context.release();
 		Assert::AreEqual(0, int(context.detour_exits.size()));
-		Assert::IsFalse(bool(context.log));
+		Assert::AreEqual(0, int(context.log.get()));
 		Assert::AreEqual(0, int(context.exits.size()));
 		Assert::AreEqual(std::string("DestroyWindow"), help.getLine());
-		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(std::string("2"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionBegin"), help.getLine());
 		Assert::AreEqual(std::string("detour_exits_procedure"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionCommit"), help.getLine());
 		Assert::AreEqual(std::string("exits_procedure"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
-		help = {log->str()};
-		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_context_startup) {
@@ -552,7 +553,6 @@ TEST_METHOD(test_context_startup) {
 	  // コマンドライン引数でパスが指定されていないときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto log = std::make_shared<std::ostringstream>();
 		api::GetCommandLine = [&]() -> LPSTR {
 			help << "GetCommandLine\n";
 			return "";
@@ -593,14 +593,22 @@ TEST_METHOD(test_context_startup) {
 			std::strcpy(lpReturnedString, "");
 			return 0;
 		};
-		std_::make_ofstream_true = [&help, log](
+		std_::make_ofstream_true = [&](
 			const std::string &file, 
 			std::ios_base::openmode mode
 		) -> std::shared_ptr<std::ostream> {
 			help << "make_ofstream\n";
 			help << file << '\n';
 			help << int(mode) << '\n';
-			return log;
+			return help.getSeqPtr<std::ostream>();
+		};
+		std_::ostream_exceptions_set_true = [&](
+			std::ostream *out, 
+			std::ios::iostate except
+		) {
+			help << "ostream_exceptions_set\n";
+			help << int(out) << '\n';
+			help << int(except) << '\n';
 		};
 		context.startup(help.getSeq<HINSTANCE>());
 		Assert::AreEqual(1, int(context.dll_handle));
@@ -614,13 +622,16 @@ TEST_METHOD(test_context_startup) {
 		Assert::AreEqual(150, int(context.ini.window.min_width));
 		Assert::AreEqual(-10000, context.ini.window.top);
 		Assert::AreEqual(300, int(context.ini.window.width));
-		Assert::AreEqual(0x400005, int(context.base_address));
+		Assert::AreEqual(0x400006, int(context.base_address));
 		Assert::AreEqual(std::string("GetModuleFileName"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string("GetCommandLine"), help.getLine());
 		Assert::AreEqual(std::string("make_ofstream"), help.getLine());
 		Assert::AreEqual(std::string("2\\3.log"), help.getLine());
 		Assert::AreEqual(stringize(int(std::ios_base::app)), help.getLine());
+		Assert::AreEqual(std::string("ostream_exceptions_set"), help.getLine());
+		Assert::AreEqual(std::string("5"), help.getLine());
+		Assert::AreEqual(stringize(std::ios_base::failbit), help.getLine());
 		Assert::AreEqual(std::string("GetPrivateProfileString"), help.getLine());
 		Assert::AreEqual(std::string("Chat"), help.getLine());
 		Assert::AreEqual(std::string("CommandSymbols"), help.getLine());
@@ -664,7 +675,6 @@ TEST_METHOD(test_context_startup) {
 	  // コマンドライン引数でパスが指定されているときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto log = std::make_shared<std::ostringstream>();
 		api::GetCommandLine = [&]() -> LPSTR {
 			help << "GetCommandLine\n";
 			return "3.log_path=hoge 3.ini_path=fuga";
@@ -715,14 +725,22 @@ TEST_METHOD(test_context_startup) {
 			std::strcpy(lpReturnedString, *res);
 			return std::strlen(*res++);
 		};
-		std_::make_ofstream_true = [&help, log](
+		std_::make_ofstream_true = [&](
 			const std::string &file, 
 			std::ios_base::openmode mode
 		) -> std::shared_ptr<std::ostream> {
 			help << "make_ofstream\n";
 			help << file << '\n';
 			help << int(mode) << '\n';
-			return log;
+			return help.getSeqPtr<std::ostream>();
+		};
+		std_::ostream_exceptions_set_true = [&](
+			std::ostream *out, 
+			std::ios::iostate except
+		) {
+			help << "ostream_exceptions_set\n";
+			help << int(out) << '\n';
+			help << int(except) << '\n';
 		};
 		context.startup(help.getSeq<HINSTANCE>());
 		Assert::AreEqual(1, int(context.dll_handle));
@@ -736,13 +754,16 @@ TEST_METHOD(test_context_startup) {
 		Assert::AreEqual(40, int(context.ini.window.min_width));
 		Assert::AreEqual(20, context.ini.window.top);
 		Assert::AreEqual(40, int(context.ini.window.width));
-		Assert::AreEqual(0x400005, int(context.base_address));
+		Assert::AreEqual(0x400006, int(context.base_address));
 		Assert::AreEqual(std::string("GetModuleFileName"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string("GetCommandLine"), help.getLine());
 		Assert::AreEqual(std::string("make_ofstream"), help.getLine());
 		Assert::AreEqual(std::string("hoge"), help.getLine());
 		Assert::AreEqual(stringize(int(std::ios_base::app)), help.getLine());
+		Assert::AreEqual(std::string("ostream_exceptions_set"), help.getLine());
+		Assert::AreEqual(std::string("5"), help.getLine());
+		Assert::AreEqual(stringize(std::ios_base::failbit), help.getLine());
 		Assert::AreEqual(std::string("GetPrivateProfileString"), help.getLine());
 		Assert::AreEqual(std::string("Chat"), help.getLine());
 		Assert::AreEqual(std::string("CommandSymbols"), help.getLine());
@@ -786,7 +807,7 @@ TEST_METHOD(test_context_startup) {
 
 TEST_METHOD(test_eqgame_CEverQuest_InterpretCmd_detour) {
 	using test_CEverQuest_InterpretCmd_t = test_trampoline_t<void,eqgame_t*,char*>;
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // チャットモードではないときに正しく動作できるか？
 		test_helper_t help;
 		HWND MainWindowHandle = help.getSeq<HWND>();
@@ -817,7 +838,7 @@ TEST_METHOD(test_eqgame_CEverQuest_InterpretCmd_detour) {
 		eqgame_t *game = help.getSeq<eqgame_t*>();
 		context = {};
 		context.ini.chat.link_body_size = 2;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		api::SendMessage = [&](
 			HWND hWnd, 
@@ -841,12 +862,12 @@ TEST_METHOD(test_eqgame_CEverQuest_InterpretCmd_detour) {
 		Assert::AreEqual(std::string("5"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_eqgame_CEverQuest_SetGameState_detour) {
 	using test_CEverQuest_SetGameState_t = test_trampoline_t<void,int>;
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作するか？
 		test_helper_t help;
 		eqgame_t::CEverQuest_SetGameState_target = 
@@ -854,7 +875,7 @@ TEST_METHOD(test_eqgame_CEverQuest_SetGameState_detour) {
 		eqgame_t *game = help.getSeq<eqgame_t*>();
 		context = {};
 		context.game_state = 0;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		test_CEverQuest_SetGameState_t::target = [&](int game_state) -> void {
 			help << "CEverQuest_SetGameState_target\n";
@@ -873,12 +894,12 @@ TEST_METHOD(test_eqgame_CEverQuest_SetGameState_detour) {
 		Assert::AreEqual(stringize(GAMESTATE_CHARSELECT), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_eqgame_CXWndManager_DrawCursor_detour) {
 	using test_CXWndManager_DrawCursor_t = test_trampoline_t<int>;
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 失敗できるか？
 		test_helper_t help;
 		HWND MainWindowHandle = help.getSeq<HWND>();
@@ -887,9 +908,8 @@ TEST_METHOD(test_eqgame_CXWndManager_DrawCursor_detour) {
 			indirect_cast<eqgame_t::CXWndManager_DrawCursor_t>(&test_CXWndManager_DrawCursor_t::trampoline_member);
 		eqgame_t *game = help.getSeq<eqgame_t*>();
 		context = {};
-		auto log = std::make_shared<std::ostringstream>();
-		context.log = log;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		context.log = help.getSeqPtr<std::ostream>();
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		test_CXWndManager_DrawCursor_t::target = [&]() -> int {
 			help << "CXWndManager_DrawCursor_target\n";
@@ -926,21 +946,29 @@ TEST_METHOD(test_eqgame_CXWndManager_DrawCursor_detour) {
 			help << "DetourTransactionCommit\n";
 			return NO_ERROR;
 		};
-		Assert::AreEqual(5, game->CXWndManager_DrawCursor_detour());
+		std_::ostream_putLine_true = [&](
+			const std::ostream *out,
+			const std::string &line
+		) {
+			help << "ostream_putLine\n";
+			help << int(out) << '\n';
+			help << line << '\n';
+		};
+		Assert::AreEqual(6, game->CXWndManager_DrawCursor_detour());
 		Assert::AreEqual(std::string("IsWindowVisible"), help.getLine());
-		Assert::AreEqual(std::string("3"), help.getLine());
+		Assert::AreEqual(std::string("4"), help.getLine());
 		Assert::AreEqual(std::string("IsIconic"), help.getLine());
-		Assert::AreEqual(std::string("3"), help.getLine());
+		Assert::AreEqual(std::string("4"), help.getLine());
 		Assert::AreEqual(std::string("GetCursorPos"), help.getLine());
 		Assert::AreEqual(std::string("GetLastError"), help.getLine());
-		Assert::AreEqual(std::string("DestroyWindow"), help.getLine());
+		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
 		Assert::AreEqual(std::string("3"), help.getLine());
+		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::GetCursorPos", 5), help.getLine().substr(24));
+		Assert::AreEqual(std::string("DestroyWindow"), help.getLine());
+		Assert::AreEqual(std::string("4"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionBegin"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionCommit"), help.getLine());
 		Assert::AreEqual(std::string("CXWndManager_DrawCursor_target"), help.getLine());
-		Assert::AreEqual(std::string(), help.getLine());
-		help = {log->str()};
-		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::GetCursorPos", 4), help.getLine().substr(24));
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	{ // マウスカーソルが日本語チャットバーの上にないときに正しく動作できるか？
@@ -951,7 +979,7 @@ TEST_METHOD(test_eqgame_CXWndManager_DrawCursor_detour) {
 			indirect_cast<eqgame_t::CXWndManager_DrawCursor_t>(&test_CXWndManager_DrawCursor_t::trampoline_member);
 		eqgame_t *game = help.getSeq<eqgame_t*>();
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		test_CXWndManager_DrawCursor_t::target = [&]() -> int {
 			help << "CXWndManager_DrawCursor_target\n";
@@ -995,7 +1023,7 @@ TEST_METHOD(test_eqgame_CXWndManager_DrawCursor_detour) {
 		eqgame_t::MainWindowHandle = &MainWindowHandle;
 		eqgame_t *game = help.getSeq<eqgame_t*>();
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		api::GetCursorPos_true = [&](LPPOINT lpPoint) -> BOOL {
 			help << "GetCursorPos\n";
@@ -1028,12 +1056,12 @@ TEST_METHOD(test_eqgame_CXWndManager_DrawCursor_detour) {
 		Assert::AreEqual(std::string("3"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_eqgame_KeypressHandler_HandleKeyDown_detour) {
 	using test_KeypressHandler_HandleKeyDown_t = test_trampoline_t<bool,const KeyCombo&>;
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // キーが無視されるか？
 		test_helper_t help;
 		BYTE NotInChatMode = TRUE;
@@ -1105,12 +1133,12 @@ TEST_METHOD(test_eqgame_KeypressHandler_HandleKeyDown_detour) {
 		Assert::AreEqual(stringize(DIK_A), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 	
 TEST_METHOD(test_eqgame_KeypressHandler_HandleKeyUp_detour) {
 	using test_KeypressHandler_HandleKeyUp_t = test_trampoline_t<bool,const KeyCombo&>;
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 失敗できるか？
 		test_helper_t help;
 		BYTE NotInChatMode = FALSE;
@@ -1119,9 +1147,8 @@ TEST_METHOD(test_eqgame_KeypressHandler_HandleKeyUp_detour) {
 			indirect_cast<eqgame_t::KeypressHandler_HandleKeyUp_t>(&test_KeypressHandler_HandleKeyUp_t::trampoline_member);
 		eqgame_t *game = help.getSeq<eqgame_t*>();
 		context = {};
-		auto log = std::make_shared<std::ostringstream>();
-		context.log = log;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		context.log = help.getSeqPtr<std::ostream>();
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		test_KeypressHandler_HandleKeyUp_t::target = [&](const KeyCombo &key_combo) -> bool {
 			help << "KeypressHandler_HandleKeyUp_target\n";
@@ -1153,12 +1180,23 @@ TEST_METHOD(test_eqgame_KeypressHandler_HandleKeyUp_detour) {
 			help << "DetourTransactionCommit\n";
 			return NO_ERROR;
 		};
-		Assert::IsFalse(game->KeypressHandler_HandleKeyUp_detour(KeyCombo{0, 0, 0, DIK_RETURN}));
+		std_::ostream_putLine_true = [&](
+			const std::ostream *out,
+			const std::string &line
+		) {
+			help << "ostream_putLine\n";
+			help << int(out) << '\n';
+			help << line << '\n';
+		};
+		Assert::IsTrue(game->KeypressHandler_HandleKeyUp_detour(KeyCombo{0, 0, 0, DIK_RETURN}));
 		Assert::AreEqual(std::string("SetActiveWindow"), help.getLine());
-		Assert::AreEqual(std::string("2"), help.getLine());
+		Assert::AreEqual(std::string("3"), help.getLine());
 		Assert::AreEqual(std::string("GetLastError"), help.getLine());
-		Assert::AreEqual(std::string("DestroyWindow"), help.getLine());
+		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
 		Assert::AreEqual(std::string("2"), help.getLine());
+		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::SetActiveWindow", 4), help.getLine().substr(24));
+		Assert::AreEqual(std::string("DestroyWindow"), help.getLine());
+		Assert::AreEqual(std::string("3"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionBegin"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionCommit"), help.getLine());
 		Assert::AreEqual(std::string("KeypressHandler_HandleKeyUp_target"), help.getLine());
@@ -1166,9 +1204,6 @@ TEST_METHOD(test_eqgame_KeypressHandler_HandleKeyUp_detour) {
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(stringize(DIK_RETURN), help.getLine());
-		Assert::AreEqual(std::string(), help.getLine());
-		help = {log->str()};
-		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::SetActiveWindow", 3), help.getLine().substr(24));
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	{ // チャットバーがアクティブになるか？
@@ -1179,7 +1214,7 @@ TEST_METHOD(test_eqgame_KeypressHandler_HandleKeyUp_detour) {
 			indirect_cast<eqgame_t::KeypressHandler_HandleKeyUp_t>(&test_KeypressHandler_HandleKeyUp_t::trampoline_member);
 		eqgame_t *game = help.getSeq<eqgame_t*>();
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		bar->data->edit.handle = help.getSeq<HWND>();
 		api::SendMessage = [&](
@@ -1244,7 +1279,7 @@ TEST_METHOD(test_eqgame_KeypressHandler_HandleKeyUp_detour) {
 			indirect_cast<eqgame_t::KeypressHandler_HandleKeyUp_t>(&test_KeypressHandler_HandleKeyUp_t::trampoline_member);
 		eqgame_t *game = help.getSeq<eqgame_t*>();
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		test_KeypressHandler_HandleKeyUp_t::target = [&](const KeyCombo &key_combo) -> bool {
 			help << "KeypressHandler_HandleKeyUp_target\n";
 			help << int(key_combo.alt) << '\n';
@@ -1293,12 +1328,12 @@ TEST_METHOD(test_eqgame_KeypressHandler_HandleKeyUp_detour) {
 		Assert::AreEqual(stringize(DIK_A), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_eqgame_ProcessGameEvents_detour) {
 	using test_ProcessGameEvents_t = test_trampoline_t<BOOL>;
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作するか？
 		test_helper_t help;
 		EVERQUEST CEverQuest;
@@ -1313,7 +1348,7 @@ TEST_METHOD(test_eqgame_ProcessGameEvents_detour) {
 		context = {};
 		context.game_state = 0;
 		context.screen_mode = screen_modes::ICONIC;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		test_ProcessGameEvents_t::target = [&]() -> BOOL {
 			help << "ProcessGameEvents_target\n";
@@ -1339,7 +1374,7 @@ TEST_METHOD(test_eqgame_ProcessGameEvents_detour) {
 		Assert::AreEqual(std::string("ProcessGameEvents_target"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 		
 TEST_METHOD(test_getAddress) {
@@ -1472,7 +1507,7 @@ TEST_METHOD(test_getOffset) {
 }
 			
 TEST_METHOD(test_getScreenMode) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // アイコンモードを取得できるか？
 		test_helper_t help;
 		HWND MainWindowHandle = help.getSeq<HWND>();
@@ -1538,17 +1573,15 @@ TEST_METHOD(test_getScreenMode) {
 		Assert::AreEqual(std::string("GetLastError"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_WindowProc) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // メッセージマップにないメッセージのときに正しく動作するか？
 		test_helper_t help;
 		context = {};
-		auto log = std::make_shared<std::ostringstream>();
-		context.log = log;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		api::DefWindowProc = [&](
 			HWND hWnd, 
@@ -1570,16 +1603,13 @@ TEST_METHOD(test_jchat_bar_WindowProc) {
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
-		help = {log->str()};
-		Assert::AreEqual(std::string(), help.getLine());
 	}
 	{ // WM_CREATEのハンドラがエラーをスローしたときに失敗できるか？
 		test_helper_t help;
 		context = {};
-		auto log = std::make_shared<std::ostringstream>();
-		context.log = log;
+		context.log = help.getSeqPtr<std::ostream>();
 		context.dll_handle = help.getSeq<HINSTANCE>();
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		api::GetLastError = [&]() -> DWORD {
 			help << "GetLastError\n";
@@ -1594,22 +1624,29 @@ TEST_METHOD(test_jchat_bar_WindowProc) {
 			help << int(lpBitmapName) << '\n';
 			return NULL;
 		};
+		std_::ostream_putLine_true = [&](
+			const std::ostream *out,
+			const std::string &line
+		) {
+			help << "ostream_putLine\n";
+			help << int(out) << '\n';
+			help << line << '\n';
+		};
 		Assert::AreEqual(-1, int(WindowProc(bar->data->handle, WM_CREATE, 0, 0)));
 		Assert::AreEqual(std::string("LoadBitmap"), help.getLine());
-		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(std::string("2"), help.getLine());
 		Assert::AreEqual(stringize(int(MAKEINTRESOURCE(IDB_ROCK_BAR))), help.getLine());
 		Assert::AreEqual(std::string("GetLastError"), help.getLine());
-		Assert::AreEqual(std::string(), help.getLine());
-		help = {log->str()};
-		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::LoadBitmapA", 3), help.getLine().substr(24));
+		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
+		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::LoadBitmapA", 4), help.getLine().substr(24));
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	{ // WM_SETFOCUSのハンドラがエラーをスローしたときに失敗できるか？
 		test_helper_t help;
 		context = {};
-		auto log = std::make_shared<std::ostringstream>();
-		context.log = log;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		context.log = help.getSeqPtr<std::ostream>();
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		bar->data->edit.handle = help.getSeq<HWND>();
 		api::DestroyWindow = [&](HWND hWnd) -> BOOL {
@@ -1634,25 +1671,31 @@ TEST_METHOD(test_jchat_bar_WindowProc) {
 			help << "DetourTransactionCommit\n";
 			return NO_ERROR;
 		};
+		std_::ostream_putLine_true = [&](
+			const std::ostream *out,
+			const std::string &line
+		) {
+			help << "ostream_putLine\n";
+			help << int(out) << '\n';
+			help << line << '\n';
+		};
 		Assert::AreEqual(0, int(WindowProc(bar->data->handle, WM_SETFOCUS, 0, 0)));
 		Assert::AreEqual(std::string("SetFocus"), help.getLine());
-		Assert::AreEqual(std::string("2"), help.getLine());
+		Assert::AreEqual(std::string("3"), help.getLine());
 		Assert::AreEqual(std::string("GetLastError"), help.getLine());
-		Assert::AreEqual(std::string("DestroyWindow"), help.getLine());
+		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::SetFocus", 4), help.getLine().substr(24));
+		Assert::AreEqual(std::string("DestroyWindow"), help.getLine());
+		Assert::AreEqual(std::string("2"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionBegin"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionCommit"), help.getLine());
-		Assert::AreEqual(std::string(), help.getLine());
-		help = {log->str()};
-		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::SetFocus", 3), help.getLine().substr(24));
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto log = std::make_shared<std::ostringstream>();
-		context.log = log;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		bar->data->edit.handle = help.getSeq<HWND>();
 		api::SetFocus_true = [&](HWND hWnd) -> HWND {
@@ -1661,22 +1704,19 @@ TEST_METHOD(test_jchat_bar_WindowProc) {
 			return help.getSeq<HWND>();
 		};
 		Assert::AreEqual(0, int(WindowProc(bar->data->handle, WM_SETFOCUS, 0, 0)));
-		Assert::IsTrue(log->str().empty());
 		Assert::AreEqual(std::string("SetFocus"), help.getLine());
 		Assert::AreEqual(std::string("2"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
-		help = {log->str()};
-		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_activate) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // Enterキーを押されたときにアクティブにできるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		api::SetActiveWindow_true = [&](HWND hWnd) -> HWND {
 			help << "SetActiveWindow\n";
@@ -1691,7 +1731,7 @@ TEST_METHOD(test_jchat_bar_activate) {
 	{ // スラッシュキーを押されたときにアクティブにできるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		bar->data->edit.handle = help.getSeq<HWND>();
 		api::SendMessage = [&](
@@ -1734,15 +1774,15 @@ TEST_METHOD(test_jchat_bar_activate) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_channel_WindowProc_sub) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // メッセージマップにないメッセージのときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->channel.handle = help.getSeq<HWND>();
 		bar->data->channel.WindowProc_super = help.getSeq<WNDPROC>();
 		api::CallWindowProc = [&](
@@ -1774,9 +1814,8 @@ TEST_METHOD(test_jchat_bar_channel_WindowProc_sub) {
 		HWND MainWindowHandle = help.getSeq<HWND>();
 		eqgame_t::MainWindowHandle = &MainWindowHandle;
 		context = {};
-		auto log = std::make_shared<std::ostringstream>();
-		context.log = log;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		context.log = help.getSeqPtr<std::ostream>();
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		bar->data->channel.handle = help.getSeq<HWND>();
 		bar->data->channel.WindowProc_super = help.getSeq<WNDPROC>();
@@ -1807,19 +1846,27 @@ TEST_METHOD(test_jchat_bar_channel_WindowProc_sub) {
 			help << "DetourTransactionCommit\n";
 			return NO_ERROR;
 		};
+		std_::ostream_putLine_true = [&](
+			const std::ostream *out,
+			const std::string &line
+		) {
+			help << "ostream_putLine\n";
+			help << int(out) << '\n';
+			help << line << '\n';
+		};
 		Assert::AreEqual(0, int(channel_WindowProc_sub(bar->data->channel.handle, WM_CHAR, VK_ESCAPE, 0)));
 		Assert::AreEqual(std::string("GetKeyState"), help.getLine());
 		Assert::AreEqual(stringize(VK_SHIFT), help.getLine());
 		Assert::AreEqual(std::string("SetActiveWindow"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string("GetLastError"), help.getLine());
-		Assert::AreEqual(std::string("DestroyWindow"), help.getLine());
+		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
 		Assert::AreEqual(std::string("2"), help.getLine());
+		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::SetActiveWindow", 6), help.getLine().substr(24));
+		Assert::AreEqual(std::string("DestroyWindow"), help.getLine());
+		Assert::AreEqual(std::string("3"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionBegin"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionCommit"), help.getLine());
-		Assert::AreEqual(std::string(), help.getLine());
-		help = {log->str()};
-		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::SetActiveWindow", 5), help.getLine().substr(24));
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	{ // 正しく動作できるか？
@@ -1827,7 +1874,7 @@ TEST_METHOD(test_jchat_bar_channel_WindowProc_sub) {
 		HWND MainWindowHandle = help.getSeq<HWND>();
 		eqgame_t::MainWindowHandle = &MainWindowHandle;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->channel.handle = help.getSeq<HWND>();
 		bar->data->channel.WindowProc_super = help.getSeq<WNDPROC>();
 		api::GetKeyState = [&](int nVirtKey) -> SHORT {
@@ -1847,16 +1894,16 @@ TEST_METHOD(test_jchat_bar_channel_WindowProc_sub) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 	
 TEST_METHOD(test_jchat_bar_channel_create) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
 		context.dll_handle = help.getSeq<HINSTANCE>();
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->hfont = help.getSeq<HFONT>();
 		api::CreateWindowEx_true = [&](
 			DWORD dwExStyle, 
@@ -2011,16 +2058,16 @@ TEST_METHOD(test_jchat_bar_channel_create) {
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_channel_onChar) {
 	using test_CEverQuest_InterpretCmd_t = test_trampoline_t<void,eqgame_t*,char*>;
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // スペースが入力されたときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->channel.handle = help.getSeq<HWND>();
 		bar->data->channel.WindowProc_super = help.getSeq<WNDPROC>();
 		api::CallWindowProc = [&](
@@ -2054,15 +2101,15 @@ TEST_METHOD(test_jchat_bar_channel_onChar) {
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_channel_onSysKeyDown) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->channel.handle = help.getSeq<HWND>();
 		bar->data->channel.WindowProc_super = help.getSeq<WNDPROC>();
 		api::CallWindowProc = [&](
@@ -2089,15 +2136,15 @@ TEST_METHOD(test_jchat_bar_channel_onSysKeyDown) {
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_channel_select) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->channel.handle = help.getSeq<HWND>();
 		api::SendMessage = [&](
 			HWND hWnd, 
@@ -2120,11 +2167,11 @@ TEST_METHOD(test_jchat_bar_channel_select) {
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 		
 TEST_METHOD(test_jchat_bar_create) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		HWND MainWindowHandle = help.getSeq<HWND>();
@@ -2134,7 +2181,7 @@ TEST_METHOD(test_jchat_bar_create) {
 		context.ini.window.left = help.getSeq();
 		context.ini.window.top = help.getSeq();
 		context.ini.window.width = help.getSeq<std::size_t>();
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		api::ClientToScreen_true = [&](HWND hWnd, LPPOINT lpPoint) -> BOOL {
 			help << "ClientToScreen\n";
 			help << int(hWnd) << '\n';
@@ -2196,12 +2243,12 @@ TEST_METHOD(test_jchat_bar_create) {
 		Assert::AreEqual(stringize(NULL), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_ctl_onChar) {
 	using test_CEverQuest_InterpretCmd_t = test_trampoline_t<void,eqgame_t*,char*>;
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // Enterが入力されたときに正しく動作できるか？
 		test_helper_t help;
 		HWND MainWindowHandle = help.getSeq<HWND>();
@@ -2213,7 +2260,7 @@ TEST_METHOD(test_jchat_bar_ctl_onChar) {
 		eqgame_t *char_spawn = help.getSeq<eqgame_t*>();
 		eqgame_t::CharSpawn = &char_spawn;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->channel.handle = help.getSeq<HWND>();
 		test_CEverQuest_InterpretCmd_t::target = [&](eqgame_t *player, char *cmd) {
@@ -2291,7 +2338,7 @@ TEST_METHOD(test_jchat_bar_ctl_onChar) {
 		HWND MainWindowHandle = help.getSeq<HWND>();
 		eqgame_t::MainWindowHandle = &MainWindowHandle;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->channel.handle = help.getSeq<HWND>();
 		api::GetKeyState = [&](int nVirtKey) -> SHORT {
 			help << "GetKeyState\n";
@@ -2313,7 +2360,7 @@ TEST_METHOD(test_jchat_bar_ctl_onChar) {
 	{ // スペースが入力されたときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->channel.handle = help.getSeq<HWND>();
 		api::CallWindowProc = [&](
 			WNDPROC lpPrevWndFunc, 
@@ -2346,15 +2393,15 @@ TEST_METHOD(test_jchat_bar_ctl_onChar) {
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_ctl_onSysKeyDown) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->channel.handle = help.getSeq<HWND>();
 		bar->data->channel.WindowProc_super = help.getSeq<WNDPROC>();
 		api::CallWindowProc = [&](
@@ -2436,11 +2483,11 @@ TEST_METHOD(test_jchat_bar_ctl_onSysKeyDown) {
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_data) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく破棄できるか？
 		test_helper_t help;
 		{
@@ -2460,15 +2507,15 @@ TEST_METHOD(test_jchat_bar_data) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_deleteFromList) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // リストが空っぽのときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->edit.last_line = help.getSeqStr();
 		api::SetWindowText_true = [&](
@@ -2489,7 +2536,7 @@ TEST_METHOD(test_jchat_bar_deleteFromList) {
 	{ // 今までの発言リストの最後の行を削除できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->history.lines = {help.getSeqStr(), help.getSeqStr()};
 		bar->data->history.moveEnd();
@@ -2538,7 +2585,7 @@ TEST_METHOD(test_jchat_bar_deleteFromList) {
 	{ // 今までの発言リストの最初の行を削除できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->history.lines = {help.getSeqStr(), help.getSeqStr()};
 		bar->data->history.moveBegin();
@@ -2585,7 +2632,7 @@ TEST_METHOD(test_jchat_bar_deleteFromList) {
 	{ // よく使う発言リストの最後の行を削除できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->history.lines = {help.getSeqStr(), help.getSeqStr()};
 		bar->data->history.moveEnd();
@@ -2634,7 +2681,7 @@ TEST_METHOD(test_jchat_bar_deleteFromList) {
 	{ // よく使う発言リストの最初の行を削除できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->history.lines = {help.getSeqStr(), help.getSeqStr()};
 		bar->data->history.moveEnd();
@@ -2678,15 +2725,15 @@ TEST_METHOD(test_jchat_bar_deleteFromList) {
 		Assert::AreEqual(std::string("-1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_drawEdge) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		api::CreatePen_true = [&](
 			int iStyle, 
 			int cWidth, 
@@ -2759,15 +2806,15 @@ TEST_METHOD(test_jchat_bar_drawEdge) {
 		Assert::AreEqual(std::string("8"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_edit_WindowProc_sub) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // メッセージマップにないメッセージのときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->edit.WindowProc_super = help.getSeq<WNDPROC>();
 		api::CallWindowProc = [&](
@@ -2799,9 +2846,8 @@ TEST_METHOD(test_jchat_bar_edit_WindowProc_sub) {
 		HWND MainWindowHandle = help.getSeq<HWND>();
 		eqgame_t::MainWindowHandle = &MainWindowHandle;
 		context = {};
-		auto log = std::make_shared<std::ostringstream>();
-		context.log = log;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		context.log = help.getSeqPtr<std::ostream>();
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->edit.WindowProc_super = help.getSeq<WNDPROC>();
@@ -2832,19 +2878,27 @@ TEST_METHOD(test_jchat_bar_edit_WindowProc_sub) {
 			help << "DetourTransactionCommit\n";
 			return NO_ERROR;
 		};
+		std_::ostream_putLine_true = [&](
+			const std::ostream *out,
+			const std::string &line
+		) {
+			help << "ostream_putLine\n";
+			help << int(out) << '\n';
+			help << line << '\n';
+		};
 		Assert::AreEqual(0, int(edit_WindowProc_sub(bar->data->edit.handle, WM_CHAR, VK_ESCAPE, 0)));
 		Assert::AreEqual(std::string("GetKeyState"), help.getLine());
 		Assert::AreEqual(stringize(VK_SHIFT), help.getLine());
 		Assert::AreEqual(std::string("SetActiveWindow"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string("GetLastError"), help.getLine());
-		Assert::AreEqual(std::string("DestroyWindow"), help.getLine());
+		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
 		Assert::AreEqual(std::string("2"), help.getLine());
+		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::SetActiveWindow", 6), help.getLine().substr(24));
+		Assert::AreEqual(std::string("DestroyWindow"), help.getLine());
+		Assert::AreEqual(std::string("3"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionBegin"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionCommit"), help.getLine());
-		Assert::AreEqual(std::string(), help.getLine());
-		help = {log->str()};
-		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::SetActiveWindow", 5), help.getLine().substr(24));
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	{ // 正しく動作できるか？
@@ -2852,7 +2906,7 @@ TEST_METHOD(test_jchat_bar_edit_WindowProc_sub) {
 		HWND MainWindowHandle = help.getSeq<HWND>();
 		eqgame_t::MainWindowHandle = &MainWindowHandle;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->edit.WindowProc_super = help.getSeq<WNDPROC>();
 		api::GetKeyState = [&](int nVirtKey) -> SHORT {
@@ -2872,17 +2926,17 @@ TEST_METHOD(test_jchat_bar_edit_WindowProc_sub) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_edit_create) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
 		context.dll_handle = help.getSeq<HINSTANCE>();
 		context.ini.window.width = (EDIT_HOR_MARGIN + 2 + 2) + help.getSeq();
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->hfont = help.getSeq<HFONT>();
 		api::CreateWindowEx_true = [&](
 			DWORD dwExStyle, 
@@ -2996,15 +3050,15 @@ TEST_METHOD(test_jchat_bar_edit_create) {
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_edit_getLine) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 空文字列の行を取得できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		api::GetLastError = [&]() -> DWORD {
 			help << "GetLastError\n";
@@ -3029,7 +3083,7 @@ TEST_METHOD(test_jchat_bar_edit_getLine) {
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		api::GetWindowText_true = [&](
 			HWND hWnd, 
@@ -3046,16 +3100,16 @@ TEST_METHOD(test_jchat_bar_edit_getLine) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_edit_onChar) {
 	using test_CEverQuest_InterpretCmd_t = test_trampoline_t<void,eqgame_t*,char*>;
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // Ctrl+Aキーが押されたときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		api::SendMessage = [&](
 			HWND hWnd, 
@@ -3081,7 +3135,7 @@ TEST_METHOD(test_jchat_bar_edit_onChar) {
 	{ // スペースキーが押されたときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->edit.WindowProc_super = help.getSeq<WNDPROC>();
 		api::CallWindowProc = [&](
@@ -3115,15 +3169,15 @@ TEST_METHOD(test_jchat_bar_edit_onChar) {
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_edit_onKeyDown) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 最後の行を選択しようと↑キーが押されたときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->history.lines = {help.getSeqStr(), help.getSeqStr()};
 		bar->data->history.moveEnd();
@@ -3172,7 +3226,7 @@ TEST_METHOD(test_jchat_bar_edit_onKeyDown) {
 	{ // 最後の行を削除しようとShift+Deleteキーが押されたときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->history.lines = {help.getSeqStr(), help.getSeqStr()};
 		bar->data->history.moveEnd();
@@ -3223,7 +3277,7 @@ TEST_METHOD(test_jchat_bar_edit_onKeyDown) {
 	{ // スペースキーが押されたときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->edit.WindowProc_super = help.getSeq<WNDPROC>();
 		api::CallWindowProc = [&](
@@ -3257,15 +3311,15 @@ TEST_METHOD(test_jchat_bar_edit_onKeyDown) {
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_edit_onSysKeyDown) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->edit.WindowProc_super = help.getSeq<WNDPROC>();
 		api::CallWindowProc = [&](
@@ -3292,15 +3346,15 @@ TEST_METHOD(test_jchat_bar_edit_onSysKeyDown) {
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_edit_replaceText) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		api::SendMessage = [&](
 			HWND hWnd, 
@@ -3323,15 +3377,15 @@ TEST_METHOD(test_jchat_bar_edit_replaceText) {
 		Assert::AreEqual(std::string("2"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 	
 TEST_METHOD(test_jchat_bar_edit_selectText) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 全テキストを選択できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		api::SendMessage = [&](
 			HWND hWnd, 
@@ -3357,7 +3411,7 @@ TEST_METHOD(test_jchat_bar_edit_selectText) {
 	{ // 一部のテキストを選択できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		api::SendMessage = [&](
 			HWND hWnd, 
@@ -3381,15 +3435,15 @@ TEST_METHOD(test_jchat_bar_edit_selectText) {
 		Assert::AreEqual(std::string("3"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_edit_setLine) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 空っぽの行を編集モードで設定できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->edit.dirty = true;
 		api::SetWindowText_true = [&](
@@ -3414,7 +3468,7 @@ TEST_METHOD(test_jchat_bar_edit_setLine) {
 	{ // 空っぽではない行を選択モードで設定できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->edit.dirty = true;
 		api::GetWindowText_true = [&](
@@ -3449,18 +3503,18 @@ TEST_METHOD(test_jchat_bar_edit_setLine) {
 		Assert::AreEqual(stringize(int(change_modes::CHOICE)), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_execute) {
 	using test_CEverQuest_InterpretCmd_t = test_trampoline_t<void,eqgame_t*,char*>;
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 空っぽの行を実行できるか？
 		test_helper_t help;
 		HWND MainWindowHandle = help.getSeq<HWND>();
 		eqgame_t::MainWindowHandle = &MainWindowHandle;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		api::GetLastError = [&]() -> DWORD {
 			help << "GetLastError\n";
@@ -3500,7 +3554,7 @@ TEST_METHOD(test_jchat_bar_execute) {
 		eqgame_t *CharSpawn = help.getSeq<eqgame_t*>();
 		eqgame_t::CharSpawn = &CharSpawn;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->channel.handle = help.getSeq<HWND>();
 		test_CEverQuest_InterpretCmd_t::target = [&](eqgame_t *player, char *cmd) {
@@ -3569,7 +3623,7 @@ TEST_METHOD(test_jchat_bar_execute) {
 	{ // よく使う発言リストに登録できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		api::GetWindowText_true = [&](
 			HWND hWnd, 
@@ -3601,16 +3655,16 @@ TEST_METHOD(test_jchat_bar_execute) {
 		Assert::AreEqual(std::string("''"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_fixPos) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // アイコンモードのときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
 		context.screen_mode = screen_modes::ICONIC;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->fixPos();
 	}
 	{ // 位置ズレを修正できるか？
@@ -3619,7 +3673,7 @@ TEST_METHOD(test_jchat_bar_fixPos) {
 		eqgame_t::MainWindowHandle = &MainWindowHandle;
 		context = {};
 		context.screen_mode = screen_modes::WINDOW;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		bar->data->mw_client_pos.x = help.getSeq<LONG>();
 		bar->data->mw_client_pos.y = help.getSeq<LONG>();
@@ -3681,7 +3735,7 @@ TEST_METHOD(test_jchat_bar_fixPos) {
 		eqgame_t::MainWindowHandle = &MainWindowHandle;
 		context = {};
 		context.screen_mode = screen_modes::FULL_SCREEN;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		bar->data->mw_client_pos.x = help.getSeq<LONG>();
 		bar->data->mw_client_pos.y = help.getSeq<LONG>();
@@ -3745,26 +3799,26 @@ TEST_METHOD(test_jchat_bar_fixPos) {
 		Assert::AreEqual(stringize(SWP_NOACTIVATE | SWP_NOSIZE), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_getHandle) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		Assert::AreEqual(1, int(bar->getHandle()));
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_getPen) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		api::CreatePen_true = [&](
 			int iStyle, 
 			int cWidth, 
@@ -3803,16 +3857,16 @@ TEST_METHOD(test_jchat_bar_getPen) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 		
 TEST_METHOD(test_jchat_bar_loadRegistry) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
 		context.ini_path = help.getSeqStr();
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		api::GetPrivateProfileString = [&](
 			LPCSTR lpAppName,
 			LPCTSTR lpKeyName,
@@ -3858,15 +3912,15 @@ TEST_METHOD(test_jchat_bar_loadRegistry) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_moveFocus) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->ordered_handles = {help.getSeq<HWND>(), help.getSeq<HWND>(), help.getSeq<HWND>()};
 		for (int i = 0; i < int(bar->data->ordered_handles.size()); ++i)
 			bar->data->ordered_indices.emplace(bar->data->ordered_handles[i], i);
@@ -3895,15 +3949,15 @@ TEST_METHOD(test_jchat_bar_moveFocus) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_moveThroughList) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // リストが空っぽのときに移動できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		api::SendMessage = [&](
 			HWND hWnd, 
@@ -3947,7 +4001,7 @@ TEST_METHOD(test_jchat_bar_moveThroughList) {
 	{ // リストが空っぽではないときに移動できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->history.lines = {"Hoge", "Fuga"};
 		bar->data->history.moveEnd();
@@ -4098,15 +4152,15 @@ TEST_METHOD(test_jchat_bar_moveThroughList) {
 		Assert::AreEqual(std::string("-1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_onCommand) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 編集モードのときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		bar->data->edit.change_mode = change_modes::EDIT;
 		bar->data->edit.dirty = false;
@@ -4122,7 +4176,7 @@ TEST_METHOD(test_jchat_bar_onCommand) {
 	{ // 選択モードのときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		bar->data->edit.change_mode = change_modes::CHOICE;
 		bar->data->edit.dirty = false;
@@ -4135,11 +4189,11 @@ TEST_METHOD(test_jchat_bar_onCommand) {
 		Assert::IsFalse(bar->data->history.isEnd());
 		Assert::IsFalse(bar->data->registry.isEnd());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_onCreate) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
@@ -4147,7 +4201,7 @@ TEST_METHOD(test_jchat_bar_onCreate) {
 		context.ini_path = help.getSeqStr();
 		context.ini.chat.font_name = help.getSeqStr();
 		context.ini.window.width = (EDIT_HOR_MARGIN + 2 + 2) + help.getSeq();
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		api::CreateCompatibleBitmap_true = [&](
 			HDC hdc, 
@@ -4551,15 +4605,15 @@ TEST_METHOD(test_jchat_bar_onCreate) {
 		Assert::AreEqual(std::string("6"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_onCtlColorEdit) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // チャンネル欄のときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		bar->data->channel.handle = help.getSeq<HWND>();
 		bar->data->rock_bar_brush_handle = help.getSeq<HBRUSH>();
@@ -4602,7 +4656,7 @@ TEST_METHOD(test_jchat_bar_onCtlColorEdit) {
 	{ // 入力欄のときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		bar->data->edit.handle = help.getSeq<HWND>();
 		bar->data->rock_bar_brush_handle = help.getSeq<HBRUSH>();
@@ -4648,17 +4702,16 @@ TEST_METHOD(test_jchat_bar_onCtlColorEdit) {
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_onDestroy) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 失敗できるか？
 		test_helper_t help;
 		context = {};
-		auto log = std::make_shared<std::ostringstream>();
-		context.log = log;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		context.log = help.getSeqPtr<std::ostream>();
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		api::GetLastError = [&]() -> DWORD {
 			help << "GetLastError\n";
@@ -4669,21 +4722,29 @@ TEST_METHOD(test_jchat_bar_onDestroy) {
 			help << int(hWnd) << '\n';
 			return FALSE;
 		};
+		std_::ostream_putLine_true = [&](
+			const std::ostream *out,
+			const std::string &line
+		) {
+			help << "ostream_putLine\n";
+			help << int(out) << '\n';
+			help << line << '\n';
+		};
 		Assert::AreEqual(0, int(bar->onDestroy(bar->data->handle, WM_DESTROY, 0, 0)));
 		Assert::AreEqual(0, int(bar->data->handle));
 		Assert::AreEqual(std::string("GetWindowRect"), help.getLine());
-		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(std::string("2"), help.getLine());
 		Assert::AreEqual(std::string("GetLastError"), help.getLine());
-		Assert::AreEqual(std::string(), help.getLine());
-		help = {log->str()};
-		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::GetWindowRect", 2), help.getLine().substr(24));
+		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
+		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::GetWindowRect", 3), help.getLine().substr(24));
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
 		context.ini_path = help.getSeqStr();
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		bar->data->mw_client_pos.x = help.getSeq<LONG>();
 		bar->data->mw_client_pos.y = help.getSeq<LONG>();
@@ -4740,32 +4801,32 @@ TEST_METHOD(test_jchat_bar_onDestroy) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_onGetMinMaxInfo) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
 		context.ini.window.min_width = help.getSeq<std::size_t>();
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		MINMAXINFO info = {};
 		Assert::AreEqual(0, int(bar->onGetMinMaxInfo(bar->data->handle, WM_GETMINMAXINFO, 0, LPARAM(&info))));
 		Assert::AreEqual(1, int(info.ptMinTrackSize.x));
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_onMove) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		HWND MainWindowHandle = help.getSeq<HWND>();
 		eqgame_t::MainWindowHandle = &MainWindowHandle;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		api::ScreenToClient_true = [&](HWND hWnd, LPPOINT lpPoint) -> BOOL {
 			help << "ScreenToClient\n";
@@ -4786,15 +4847,15 @@ TEST_METHOD(test_jchat_bar_onMove) {
 		Assert::AreEqual(std::string("4"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_onNCHitTest) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		api::GetWindowRect_true = [&](HWND hWnd, LPRECT lpRect) -> BOOL {
 			help << "GetWindowRect\n";
@@ -4813,15 +4874,15 @@ TEST_METHOD(test_jchat_bar_onNCHitTest) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_onPaint) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // アクティブのときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		bar->data->rock_bar_brush_handle = help.getSeq<HBRUSH>();
 		bar->data->buffer_dc_handle = help.getSeq<HDC>();
@@ -5037,7 +5098,7 @@ TEST_METHOD(test_jchat_bar_onPaint) {
 	{ // インアクティブのときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		bar->data->rock_bar_brush_handle = help.getSeq<HBRUSH>();
 		bar->data->buffer_dc_handle = help.getSeq<HDC>();
@@ -5250,15 +5311,15 @@ TEST_METHOD(test_jchat_bar_onPaint) {
 		Assert::AreEqual(std::string("8"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_onSetCursor) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = HWND(101);
 		api::DefWindowProc = [&](
 			HWND hWnd, 
@@ -5307,15 +5368,15 @@ TEST_METHOD(test_jchat_bar_onSetCursor) {
 		Assert::AreEqual(stringize(MAKELPARAM(HTCLIENT, WM_MOUSEMOVE)), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_onSetFocus) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		bar->data->edit.handle = help.getSeq<HWND>();
 		api::SetFocus_true = [&](HWND hWnd) -> HWND {
@@ -5328,15 +5389,15 @@ TEST_METHOD(test_jchat_bar_onSetFocus) {
 		Assert::AreEqual(std::string("2"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_onSize) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 最小化のときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		Assert::AreEqual(0, int(bar->onSize(bar->data->handle, WM_SIZE, SIZE_MINIMIZED, MAKELPARAM(300, 24))));
 		Assert::AreEqual(std::string(), help.getLine());
@@ -5344,7 +5405,7 @@ TEST_METHOD(test_jchat_bar_onSize) {
 	{ // サイズ変更のときに正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		api::MoveWindow_true = [&](
 			HWND hWnd, 
@@ -5375,17 +5436,17 @@ TEST_METHOD(test_jchat_bar_onSize) {
 		Assert::AreEqual(stringize(TRUE), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_prepare) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
 		context.dll_handle = help.getSeq<HINSTANCE>();
 		context.ini.chat.font_name = help.getSeqStr();
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		api::CreateCompatibleBitmap_true = [&](
 			HDC hdc, 
 			int cx, 
@@ -5583,11 +5644,11 @@ TEST_METHOD(test_jchat_bar_prepare) {
 		Assert::AreEqual(std::string("4"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_register) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
@@ -5619,7 +5680,7 @@ TEST_METHOD(test_jchat_bar_register) {
 			help << int(hInstance) << '\n';
 			return TRUE;
 		};
-		test_jchat_bar_t::registerClass();
+		spy_jchat_bar_t::registerClass();
 		Assert::AreEqual(1, int(context.exits.size()));
 		reverseClear(context.exits);
 		Assert::AreEqual(std::string("LoadCursor"), help.getLine());
@@ -5627,7 +5688,7 @@ TEST_METHOD(test_jchat_bar_register) {
 		Assert::AreEqual(stringize(int(MAKEINTRESOURCE(IDC_EQ_ARROW))), help.getLine());
 		Assert::AreEqual(std::string("RegisterClass"), help.getLine());
 		Assert::AreEqual(stringize(int(CS_HREDRAW | CS_NOCLOSE)), help.getLine());
-		Assert::AreEqual(stringize(int(&test_jchat_bar_t::WindowProc)), help.getLine());
+		Assert::AreEqual(stringize(int(&spy_jchat_bar_t::WindowProc)), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string("2"), help.getLine());
 		Assert::AreEqual(std::string(JCHAT_BAR_NAME), help.getLine());
@@ -5636,16 +5697,16 @@ TEST_METHOD(test_jchat_bar_register) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_storeRegistry) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
 		context.ini_path = help.getSeqStr();
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->registry.lines = {help.getSeqStr(), help.getSeqStr()};
 		api::WritePrivateProfileString_true = [&](
 			LPCSTR lpAppName, 
@@ -5680,16 +5741,16 @@ TEST_METHOD(test_jchat_bar_storeRegistry) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_text_addChannel) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // チャンネルを付加しないか？
 		test_helper_t help;
 		context = {};
 		context.ini.chat.command_symbols = "/#^";
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->channel.handle = help.getSeq<HWND>();
 		Assert::AreEqual(std::string("/Hoge"), bar->text_addChannel("/Hoge"));
 		Assert::AreEqual(std::string("#Hoge"), bar->text_addChannel("#Hoge"));
@@ -5700,7 +5761,7 @@ TEST_METHOD(test_jchat_bar_text_addChannel) {
 		test_helper_t help;
 		context = {};
 		context.ini.chat.command_symbols = "/#^";
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->channel.handle = help.getSeq<HWND>();
 		api::SendMessage = [&](
 			HWND hWnd, 
@@ -5761,15 +5822,15 @@ TEST_METHOD(test_jchat_bar_text_addChannel) {
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_text_eqChatToJChat) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // リンクを含まないテキストを変換できるか？
 		context = {};
 		context.ini.chat.link_body_size = 2;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		const char *cmd = "Hoge";
 		std::string text = bar->text_eqChatToJChat(cmd);
 		Assert::AreEqual(std::string("Hoge"), text);
@@ -5778,7 +5839,7 @@ TEST_METHOD(test_jchat_bar_text_eqChatToJChat) {
 	{ // リンクを1個含むテキストを変換できるか？
 		context = {};
 		context.ini.chat.link_body_size = 2;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		const char *cmd = "Hoge\x12""12Foo\x12""Fuga";
 		std::string text = bar->text_eqChatToJChat(cmd);
 		Assert::AreEqual(std::string("Hoge{0:Foo}Fuga"), text);
@@ -5788,7 +5849,7 @@ TEST_METHOD(test_jchat_bar_text_eqChatToJChat) {
 	{ // リンクを2個含むテキストを変換できるか？
 		context = {};
 		context.ini.chat.link_body_size = 3;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		const char *cmd = "Hoge\x12""234Foo\x12""Fuga\x12""345Bar\x12""Piyo";
 		bar->data->link_bodies = {"123"};
 		std::string text = bar->text_eqChatToJChat(cmd);
@@ -5797,21 +5858,21 @@ TEST_METHOD(test_jchat_bar_text_eqChatToJChat) {
 		Assert::AreEqual(std::string("234"), bar->data->link_bodies[1]);
 		Assert::AreEqual(std::string("345"), bar->data->link_bodies[2]);
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_text_jChatToEQChat) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // リンクを含まないテキストを変換できるか？
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		std::string text = "Hoge";
 		std::string cmd = bar->text_jChatToEQChat(text);
 		Assert::AreEqual(std::string("Hoge"), cmd);
 	}
 	{ // 分割記号のないリンクを含むテキストを変換できるか？
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->link_bodies = {"12"};
 		std::string text = "Hoge{0Fuga";
 		std::string cmd = bar->text_jChatToEQChat(text);
@@ -5819,7 +5880,7 @@ TEST_METHOD(test_jchat_bar_text_jChatToEQChat) {
 	}
 	{ // 終端のないリンクを含むテキストを変換できるか？
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->link_bodies = {"12"};
 		std::string text = "Hoge{0:FooFuga";
 		std::string cmd = bar->text_jChatToEQChat(text);
@@ -5827,7 +5888,7 @@ TEST_METHOD(test_jchat_bar_text_jChatToEQChat) {
 	}
 	{ // 負の番号のリンクを含むテキストを変換できるか？
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->link_bodies = {"12"};
 		std::string text = "Hoge{-1:Foo}Fuga";
 		std::string cmd = bar->text_jChatToEQChat(text);
@@ -5835,7 +5896,7 @@ TEST_METHOD(test_jchat_bar_text_jChatToEQChat) {
 	}
 	{ // サイズオーバーの番号のリンクを含むテキストを変換できるか？
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->link_bodies = {"12"};
 		std::string text = "Hoge{2:Foo}Fuga";
 		std::string cmd = bar->text_jChatToEQChat(text);
@@ -5843,7 +5904,7 @@ TEST_METHOD(test_jchat_bar_text_jChatToEQChat) {
 	}
 	{ // リンクを1個含むテキストを変換できるか？
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->link_bodies = {"12"};
 		std::string text = "Hoge{0:Foo}Fuga";
 		std::string cmd = bar->text_jChatToEQChat(text);
@@ -5851,22 +5912,22 @@ TEST_METHOD(test_jchat_bar_text_jChatToEQChat) {
 	}
 	{ // リンクを2個含むテキストを変換できるか？
 		context = {};
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->link_bodies = {"123", "234", "345"};
 		std::string text = "Hoge{1:Foo}Fuga{2:Bar}Piyo";
 		std::string cmd = bar->text_jChatToEQChat(text);
 		Assert::AreEqual(std::string("Hoge\x12""234Foo\x12""Fuga\x12""345Bar\x12""Piyo"), cmd);
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_jchat_bar_transferText) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
 		context.ini.chat.link_body_size = 2;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->edit.handle = help.getSeq<HWND>();
 		api::SendMessage = [&](
 			HWND hWnd, 
@@ -5891,7 +5952,7 @@ TEST_METHOD(test_jchat_bar_transferText) {
 		Assert::AreEqual(std::string("Hoge{0:Foo}Fuga"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_line_list) {
@@ -5935,16 +5996,15 @@ TEST_METHOD(test_makeKeySituation) {
 }
 
 TEST_METHOD(test_onGameStateChange) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 失敗できるか？
 		test_helper_t help;
 		HWND MainWindowHandle = help.getSeq<HWND>();
 		eqgame_t::MainWindowHandle = &MainWindowHandle;
 		context = {};
-		auto log = std::make_shared<std::ostringstream>();
-		context.log = log;
+		context.log = help.getSeqPtr<std::ostream>();
 		context.game_state = GAMESTATE_INGAME;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		api::GetLastError = [&]() -> DWORD {
 			help << "GetLastError\n";
 			return help.getSeq<DWORD>();
@@ -5968,6 +6028,14 @@ TEST_METHOD(test_onGameStateChange) {
 			help << "DetourTransactionCommit\n";
 			return NO_ERROR;
 		};
+		std_::ostream_putLine_true = [&](
+			const std::ostream *out,
+			const std::string &line
+		) {
+			help << "ostream_putLine\n";
+			help << int(out) << '\n';
+			help << line << '\n';
+		};
 		onGameStateChange();
 		Assert::AreEqual(std::string("IsIconic"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
@@ -5975,11 +6043,11 @@ TEST_METHOD(test_onGameStateChange) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(stringize(GWL_EXSTYLE), help.getLine());
 		Assert::AreEqual(std::string("GetLastError"), help.getLine());
+		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
+		Assert::AreEqual(std::string("2"), help.getLine());
+		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::GetWindowLongA", 3), help.getLine().substr(24));
 		Assert::AreEqual(std::string("DetourTransactionBegin"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionCommit"), help.getLine());
-		Assert::AreEqual(std::string(), help.getLine());
-		help = {log->str()};
-		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::GetWindowLongA", 2), help.getLine().substr(24));
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	{ // ゲーム中、チャットバーを未作成のときに正しく動作できるか？
@@ -5993,7 +6061,7 @@ TEST_METHOD(test_onGameStateChange) {
 		context.ini.window.left = help.getSeq();
 		context.ini.window.top = help.getSeq();
 		context.ini.window.width = help.getSeq<std::size_t>();
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		api::ClientToScreen_true = [&](HWND hWnd, LPPOINT lpPoint) -> BOOL {
 			help << "ClientToScreen\n";
 			help << int(hWnd) << '\n';
@@ -6206,7 +6274,7 @@ TEST_METHOD(test_onGameStateChange) {
 		Assert::AreEqual(stringize(int(MAKEINTRESOURCE(IDC_EQ_ARROW))), help.getLine());
 		Assert::AreEqual(std::string("RegisterClass"), help.getLine());
 		Assert::AreEqual(stringize(int(CS_HREDRAW | CS_NOCLOSE)), help.getLine());
-		Assert::AreEqual(stringize(int(&test_jchat_bar_t::WindowProc)), help.getLine());
+		Assert::AreEqual(stringize(int(&spy_jchat_bar_t::WindowProc)), help.getLine());
 		Assert::AreEqual(std::string("2"), help.getLine());
 		Assert::AreEqual(std::string("11"), help.getLine());
 		Assert::AreEqual(std::string(JCHAT_BAR_NAME), help.getLine());
@@ -6272,7 +6340,7 @@ TEST_METHOD(test_onGameStateChange) {
 		test_helper_t help;
 		context = {};
 		context.game_state = GAMESTATE_CHARSELECT;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		onGameStateChange();
 		Assert::AreEqual(std::string(), help.getLine());
 	}
@@ -6280,7 +6348,7 @@ TEST_METHOD(test_onGameStateChange) {
 		test_helper_t help;
 		context = {};
 		context.game_state = GAMESTATE_CHARSELECT;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		api::IsWindowVisible = [&](HWND hWnd) -> BOOL {
 			help << "IsWindowVisible\n";
@@ -6302,14 +6370,13 @@ TEST_METHOD(test_onGameStateChange) {
 		Assert::AreEqual(stringize(SW_HIDE), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 TEST_METHOD(test_onProcessAttach) {
 	{ // jchat.logを開けなかったときに失敗できるか？
 		test_helper_t help;
 		context = {};
-		auto log = std::make_shared<std::ofstream>("");
 		api::GetCommandLine = [&]() -> LPSTR {
 			help << "GetCommandLine\n";
 			return "";
@@ -6344,16 +6411,28 @@ TEST_METHOD(test_onProcessAttach) {
 			help << "make_ofstream\n";
 			help << file << '\n';
 			help << int(mode) << '\n';
-			return log;
+			return help.getSeqPtr<std::ostream>();
+		};
+		std_::ostream_exceptions_set_true = [&](
+			std::ostream *out, 
+			std::ios::iostate except
+		) {
+			help << "ostream_exceptions_set\n";
+			help << int(out) << '\n';
+			help << int(except) << '\n';
+			throw std::ios_base::failure(help.getSeqStr());
 		};
 		Assert::IsFalse(onProcessAttach(help.getSeq<HINSTANCE>()));
-		Assert::IsFalse(bool(context.log));
+		Assert::AreEqual(0, int(context.log.get()));
 		Assert::AreEqual(std::string("GetModuleFileName"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string("GetCommandLine"), help.getLine());
 		Assert::AreEqual(std::string("make_ofstream"), help.getLine());
 		Assert::AreEqual(std::string("2\\3.log"), help.getLine());
 		Assert::AreEqual(stringize(int(std::ios_base::app)), help.getLine());
+		Assert::AreEqual(std::string("ostream_exceptions_set"), help.getLine());
+		Assert::AreEqual(std::string("5"), help.getLine());
+		Assert::AreEqual(stringize(std::ios_base::failbit), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionBegin"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionCommit"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
@@ -6361,7 +6440,6 @@ TEST_METHOD(test_onProcessAttach) {
 	{ // jchat.logを開いた後に失敗できるか？
 		test_helper_t help;
 		context = {};
-		auto log = std::make_shared<std::ostringstream>();
 		api::GetCommandLine = [&]() -> LPSTR {
 			help << "GetCommandLine\n";
 			return "";
@@ -6413,7 +6491,15 @@ TEST_METHOD(test_onProcessAttach) {
 			help << "make_ofstream\n";
 			help << file << '\n';
 			help << int(mode) << '\n';
-			return log;
+			return help.getSeqPtr<std::ostream>();
+		};
+		std_::ostream_exceptions_set_true = [&](
+			std::ostream *out, 
+			std::ios::iostate except
+		) {
+			help << "ostream_exceptions_set\n";
+			help << int(out) << '\n';
+			help << int(except) << '\n';
 		};
 		dtr::DetourTransactionBegin_true = [&]() -> LONG {
 			help << "DetourTransactionBegin\n";
@@ -6423,6 +6509,14 @@ TEST_METHOD(test_onProcessAttach) {
 			help << "DetourTransactionCommit\n";
 			return NO_ERROR;
 		};
+		std_::ostream_putLine_true = [&](
+			const std::ostream *out,
+			const std::string &line
+		) {
+			help << "ostream_putLine\n";
+			help << int(out) << '\n';
+			help << line << '\n';
+		};
 		Assert::IsFalse(onProcessAttach(help.getSeq<HINSTANCE>()));
 		Assert::AreEqual(std::string("GetModuleFileName"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
@@ -6430,6 +6524,9 @@ TEST_METHOD(test_onProcessAttach) {
 		Assert::AreEqual(std::string("make_ofstream"), help.getLine());
 		Assert::AreEqual(std::string("2\\3.log"), help.getLine());
 		Assert::AreEqual(stringize(int(std::ios_base::app)), help.getLine());
+		Assert::AreEqual(std::string("ostream_exceptions_set"), help.getLine());
+		Assert::AreEqual(std::string("5"), help.getLine());
+		Assert::AreEqual(stringize(std::ios_base::failbit), help.getLine());
 		Assert::AreEqual(std::string("GetPrivateProfileString"), help.getLine());
 		Assert::AreEqual(std::string("Chat"), help.getLine());
 		Assert::AreEqual(std::string("CommandSymbols"), help.getLine());
@@ -6468,17 +6565,16 @@ TEST_METHOD(test_onProcessAttach) {
 		Assert::AreEqual(std::string("GetModuleHandle"), help.getLine());
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string("GetLastError"), help.getLine());
+		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
+		Assert::AreEqual(std::string("5"), help.getLine());
+		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::GetModuleHandleA", 6), help.getLine().substr(24));
 		Assert::AreEqual(std::string("DetourTransactionBegin"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionCommit"), help.getLine());
-		Assert::AreEqual(std::string(), help.getLine());
-		help = {log->str()};
-		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::GetModuleHandleA", 5), help.getLine().substr(24));
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
-		auto log = std::make_shared<std::ostringstream>();
 		api::GetCommandLine = [&]() -> LPSTR {
 			help << "GetCommandLine\n";
 			return "";
@@ -6552,7 +6648,15 @@ TEST_METHOD(test_onProcessAttach) {
 			help << "make_ofstream\n";
 			help << file << '\n';
 			help << int(mode) << '\n';
-			return log;
+			return help.getSeqPtr<std::ostream>();
+		};
+		std_::ostream_exceptions_set_true = [&](
+			std::ostream *out, 
+			std::ios::iostate except
+		) {
+			help << "ostream_exceptions_set\n";
+			help << int(out) << '\n';
+			help << int(except) << '\n';
 		};
 		Assert::IsTrue(onProcessAttach(help.getSeq<HINSTANCE>()));
 		Assert::AreEqual(2, int(context.detour_exits.size()));
@@ -6563,6 +6667,9 @@ TEST_METHOD(test_onProcessAttach) {
 		Assert::AreEqual(std::string("make_ofstream"), help.getLine());
 		Assert::AreEqual(std::string("2\\3.log"), help.getLine());
 		Assert::AreEqual(stringize(int(std::ios_base::app)), help.getLine());
+		Assert::AreEqual(std::string("ostream_exceptions_set"), help.getLine());
+		Assert::AreEqual(std::string("5"), help.getLine());
+		Assert::AreEqual(stringize(std::ios_base::failbit), help.getLine());
 		Assert::AreEqual(std::string("GetPrivateProfileString"), help.getLine());
 		Assert::AreEqual(std::string("Chat"), help.getLine());
 		Assert::AreEqual(std::string("CommandSymbols"), help.getLine());
@@ -6668,7 +6775,7 @@ TEST_METHOD(test_onProcessDetach) {
 }
 
 TEST_METHOD(test_onScreenModeChange) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // アイコンモードのときに正しく動作できるか？
 		context = {};
 		context.screen_mode = screen_modes::ICONIC;
@@ -6679,10 +6786,9 @@ TEST_METHOD(test_onScreenModeChange) {
 		HWND MainWindowHandle = help.getSeq<HWND>();
 		eqgame_t::MainWindowHandle = &MainWindowHandle;
 		context = {};
-		auto log = std::make_shared<std::ostringstream>();
-		context.log = log;
+		context.log = help.getSeqPtr<std::ostream>();
 		context.screen_mode = screen_modes::WINDOW;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		bar->data->mw_client_pos.x = help.getSeq<LONG>();
 		bar->data->mw_client_pos.y = help.getSeq<LONG>();
@@ -6715,21 +6821,29 @@ TEST_METHOD(test_onScreenModeChange) {
 			help << "DetourTransactionCommit\n";
 			return NO_ERROR;
 		};
+		std_::ostream_putLine_true = [&](
+			const std::ostream *out,
+			const std::string &line
+		) {
+			help << "ostream_putLine\n";
+			help << int(out) << '\n';
+			help << line << '\n';
+		};
 		onScreenModeChange();
 		Assert::AreEqual(std::string("IsWindowVisible"), help.getLine());
-		Assert::AreEqual(std::string("2"), help.getLine());
+		Assert::AreEqual(std::string("3"), help.getLine());
 		Assert::AreEqual(std::string("ClientToScreen"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
-		Assert::AreEqual(std::string("3"), help.getLine());
 		Assert::AreEqual(std::string("4"), help.getLine());
+		Assert::AreEqual(std::string("5"), help.getLine());
 		Assert::AreEqual(std::string("GetLastError"), help.getLine());
-		Assert::AreEqual(std::string("DestroyWindow"), help.getLine());
+		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
 		Assert::AreEqual(std::string("2"), help.getLine());
+		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::ClientToScreen", 6), help.getLine().substr(24));
+		Assert::AreEqual(std::string("DestroyWindow"), help.getLine());
+		Assert::AreEqual(std::string("3"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionBegin"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionCommit"), help.getLine());
-		Assert::AreEqual(std::string(), help.getLine());
-		help = {log->str()};
-		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::ClientToScreen", 5), help.getLine().substr(24));
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	{ // 位置ズレを修正できるか？
@@ -6738,7 +6852,7 @@ TEST_METHOD(test_onScreenModeChange) {
 		eqgame_t::MainWindowHandle = &MainWindowHandle;
 		context = {};
 		context.screen_mode = screen_modes::WINDOW;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		bar->data->mw_client_pos.x = help.getSeq<LONG>();
 		bar->data->mw_client_pos.y = help.getSeq<LONG>();
@@ -6801,16 +6915,16 @@ TEST_METHOD(test_onScreenModeChange) {
 		Assert::AreEqual(stringize(SWP_NOACTIVATE | SWP_NOSIZE), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 		
 TEST_METHOD(test_refreshGameState) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // ゲームの状態がゼロ→ゼロのときに無視できるか？
 		test_helper_t help;
 		context = {};
 		context.game_state = 0;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		refreshGameState(0);
 		Assert::AreEqual(0, context.game_state);
@@ -6819,7 +6933,7 @@ TEST_METHOD(test_refreshGameState) {
 		test_helper_t help;
 		context = {};
 		context.game_state = GAMESTATE_CHARSELECT;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		refreshGameState(0);
 		Assert::AreEqual(GAMESTATE_CHARSELECT, context.game_state);
@@ -6828,7 +6942,7 @@ TEST_METHOD(test_refreshGameState) {
 		test_helper_t help;
 		context = {};
 		context.game_state = 0;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		api::IsWindowVisible = [&](HWND hWnd) -> BOOL {
 			help << "IsWindowVisible\n";
@@ -6841,18 +6955,18 @@ TEST_METHOD(test_refreshGameState) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 	
 TEST_METHOD(test_refreshScreenMode) {
-	BEGIN_JCHAT_BAR_TEST();
+	BEGIN_DEF_SPY_CLASS(jchat_bar_t);
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		HWND MainWindowHandle = help.getSeq<HWND>();
 		eqgame_t::MainWindowHandle = &MainWindowHandle;
 		context = {};
 		context.screen_mode = screen_modes::WINDOW;
-		auto bar = (test_jchat_bar_t*)(&context.jchat_bar);
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		bar->data->handle = help.getSeq<HWND>();
 		api::GetWindowLong_true = [&](HWND hWnd, int nIndex) -> LONG {
 			help << "GetWindowLong\n";
@@ -6881,7 +6995,7 @@ TEST_METHOD(test_refreshScreenMode) {
 		Assert::AreEqual(std::string("2"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
-	END_JCHAT_BAR_TEST();
+	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
 };

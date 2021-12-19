@@ -8,16 +8,25 @@
 
 #include <chrono>
 #include <cstdarg>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
+#include <initializer_list>
 #include <locale>
+#include <mutex>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace jeq {
+
+// 定数の定義。
+
+// CPUコアの数。
+const std::size_t HARDWARE_CONCURRENCY = std::thread::hardware_concurrency();
 
 //// クラスメンバ関数の定義
 
@@ -51,6 +60,95 @@ test_helper_t::getSeqStr(
 // テストヘルパーの現在の連番をベースとして設定する。
 void test_helper_t::setSeqBase() {
 	data->seq_base = data->seq;
+}
+
+// ワークが完了したかどうかを判定する。
+bool // 真なら完了、偽なら未完。
+thread_pool_t::work_t::isDone() const {
+	auto lock = std_::make_unique_lock(&data->mutex);
+	return data->tasks_done == data->tasks_count;
+}
+
+// ワークが完了するまで待機する。
+void thread_pool_t::work_t::waitUntilDone() {
+	auto lock = std_::make_unique_lock(&data->mutex);
+	std_::condition_variable_wait(
+		&data->work_cv, 
+		lock.get(), 
+		[this]() -> bool {
+			return data->tasks_done == data->tasks_count;
+		}
+	);
+}
+
+// ワークを構築する。
+thread_pool_t::work_t::work_t(
+	std::size_t tasks_count // タスクの数。
+) {
+	data->tasks_count = tasks_count;
+}
+
+// ワークに所属するタスク１個の実行が完了したら呼び出される。
+void thread_pool_t::work_t::onTaskDone() {
+	auto lock = std_::make_unique_lock(&data->mutex);
+	++data->tasks_done;
+	std_::unique_lock_unlock(lock.get());
+	std_::condition_variable_notify_all(&data->work_cv);
+}
+
+// スレッドプールを構築する。
+thread_pool_t::thread_pool_t(
+	std::size_t workers_count // ワーカースレッドの数。省略ならCPUコアの数。
+) {
+	// 指定された数のワーカースレッドを作成する。
+	for (std::size_t i = 0; i < workers_count; ++i)
+		data->workers.emplace_back(std_::make_thread([this] {
+			worker_procedure();
+		}));
+}
+
+// スレッドプールにタスクの非同期実行を依頼する。
+thread_pool_t::work_t // 作成したワーク。
+thread_pool_t::ask(
+	const task_t &task // 非同期実行するタスク。
+) {
+	return ask(std::initializer_list<task_t>{task});
+}
+
+// スレッドプールのインスタンスデータを破棄する。
+// 待機中のワーカーはすぐに離脱させ、実行中のワーカーは完了次第
+// 離脱させる。すべてのワーカースレッドが離脱したら、制御を戻す。
+thread_pool_t::data_t::~data_t() {
+	auto lock = std_::make_unique_lock(&mutex);
+	leave = true;
+	std_::unique_lock_unlock(lock.get());
+	std_::condition_variable_notify_all(&workers_cv);
+	for (auto worker : workers) std_::thread_join(worker.get());
+}
+
+// ワーカースレッドの処理。
+// タスクの実行を繰り返す。
+void thread_pool_t::worker_procedure() {
+	for (;;) {
+		auto lock = std_::make_unique_lock(&data->mutex);
+		// 離脱フラグがセットされるか、または
+		// キューにタスクがプッシュされれば目覚める。
+		std_::condition_variable_wait(
+			&data->workers_cv, 
+			lock.get(), 
+			[this]() -> bool {
+				return data->leave || !data->tasks.empty();
+			}
+		);
+		// 離脱ならループを脱出し、スレッドを終了する。
+		if (data->leave) break;
+		// キューから未実行のタスクをポップする。
+		task_t task = data->tasks.front();
+		data->tasks.pop();
+		// ロックを解除してから、タスクを実行する。
+		std_::unique_lock_unlock(lock.get());
+		task();
+	}
 }
 
 //// 関数の定義
@@ -208,12 +306,12 @@ point_screenToClient(
 }
 
 // ログファイルにメッセージを書き込む。
-// メッセージは日時と共に書き込まれ、次のようになる。
-// "YYYY/MM/DD HH:mm:SS.sss MESSAGE"
-// ここでYYYYには年、MMには月、DDには日、HHには時、mmには分、
-// SSには秒、sssにはミリ秒、MESSAGEにはメッセージを埋め込む。
+// メッセージは日時と共に書き込まれ、次のような形式になる。
+// "YYYY/MM/DD HH:mm:SS.sss メッセージ"
+// ここでYYYYには年、MMには月、DDには日、HHには時、
+// mmには分、SSには秒、sssにはミリ秒を埋め込む。
 void putLog(
-	std::ostream &log,     // ログファイルの出力ストリーム。
+	std::ostream *log,     // ログファイルの出力ストリーム。
 	const std::string &mes // 書き込むメッセージ。
 ) {
 	// 現在の日時と共に書き込む。
@@ -225,16 +323,17 @@ void putLog(
 	milliseconds epoch_msec = 
 		duration_cast<milliseconds>(now.time_since_epoch());
 	int msec = epoch_msec.count() % 1000;
-	log << std::setfill('0') <<
-		std::setw(4) << 1900 + tm->tm_year << '/' <<
-		std::setw(2) << 1 + tm->tm_mon << '/' <<
-		std::setw(2) << tm->tm_mday << ' ' <<
-		std::setw(2) << tm->tm_hour << ':' <<
-		std::setw(2) << tm->tm_min << ':' <<
-		std::setw(2) << tm->tm_sec << '.' <<
-		std::setw(3) << msec << ' ' <<
-		mes << '\n';
-	log.flush();
+	std_::ostream_putLine(log, string_printf(
+		"%04d/%02d/%02d %02d:%02d:%02d.%03d %s",
+		1900 + tm->tm_year,
+		1 + tm->tm_mon,
+		tm->tm_mday,
+		tm->tm_hour,
+		tm->tm_min,
+		tm->tm_sec,
+		msec,
+		mes.c_str()
+	));
 }
 
 // ２個の矩形が重複しているかどうかを判定する。

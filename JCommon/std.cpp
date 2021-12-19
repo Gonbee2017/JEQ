@@ -6,9 +6,15 @@
 #include "std.hpp"
 
 #include <cerrno>
+#include <chrono>
+#include <condition_variable>
+#include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <ios>
 #include <memory>
+#include <thread>
+#include <utility>
 
 namespace jeq::std_ {
 
@@ -47,7 +53,39 @@ error::getNumber() const {
 
 DEF_IMP(chrono_system_clock_now) = std::chrono::system_clock::now;
 
-DEF_IMP_TRUE(filesystem_equivalent) = [](
+DEF_IMP_DEF(condition_variable_notify_all) = [](
+	std::condition_variable *cv
+) {
+	cv->notify_all();
+};
+
+DEF_IMP_WRAP(
+	condition_variable_notify_all, 
+	void, 
+	std::condition_variable *cv
+) {
+	condition_variable_notify_all_true(cv);
+}
+
+DEF_IMP_DEF(condition_variable_wait) = [](
+	std::condition_variable *cv, 
+	std::unique_lock<std::mutex> *lock, 
+	const std::function<bool()> &pred
+) {
+	cv->wait(*lock, pred);
+};
+
+DEF_IMP_WRAP(
+	condition_variable_wait, 
+	void, 
+	std::condition_variable *cv, 
+	std::unique_lock<std::mutex> *lock, 
+	const std::function<bool()> &pred
+) {
+	condition_variable_wait_true(cv, lock, pred);
+}
+
+DEF_IMP_DEF(filesystem_equivalent) = [](
 	const std::filesystem::path &p1, 
 	const std::filesystem::path &p2
 ) -> bool {
@@ -85,7 +123,7 @@ DEF_IMP(geterrno) = []() -> int {
 	return errno;
 };
 
-DEF_IMP_TRUE(make_ofstream) = [](
+DEF_IMP_DEF(make_ofstream) = [](
 	const std::string &s, 
 	std::ios_base::openmode mode
 ) -> std::shared_ptr<std::ostream> {
@@ -100,11 +138,100 @@ DEF_IMP_WRAP(
 ) {
 	auto out = make_ofstream_true(s, mode);
 	try {
-		out->exceptions(std::ios_base::failbit);
+		ostream_exceptions_set(out.get(), std::ios_base::failbit);
 	} catch (const std::ios_base::failure &err) {
 		throw error(__FUNCTION__, err.code().value());
 	}
 	return out;
+}
+
+DEF_IMP_DEF(make_unique_lock) = [](
+	std::mutex *mutex
+) -> std::shared_ptr<std::unique_lock<std::mutex>> {
+	return std::make_shared<std::unique_lock<std::mutex>>(*mutex);
+};
+
+DEF_IMP_WRAP(
+	make_unique_lock, 
+	std::shared_ptr<std::unique_lock<std::mutex>>, 
+	std::mutex *mutex
+) {
+	return make_unique_lock_true(mutex);
+}
+
+DEF_IMP_DEF(make_thread) = [](
+	const std::function<void()> &proc
+) -> std::shared_ptr<std::thread> {
+	return std::make_shared<std::thread>(proc);
+};
+
+DEF_IMP_WRAP(
+	make_thread, 
+	std::shared_ptr<std::thread>, 
+	const std::function<void()> &proc
+) {
+	return make_thread_true(proc);
+}
+
+DEF_IMP_DEF(ostream_exceptions_set) = [](
+	std::ostream *out, 
+	std::ios::iostate except
+) {
+	out->exceptions(except);
+};
+
+DEF_IMP_WRAP(
+	ostream_exceptions_set, 
+	void, 
+	std::ostream *out, 
+	std::ios::iostate except
+) {
+	ostream_exceptions_set_true(out, except);
+}
+
+DEF_IMP_DEF(ostream_putLine) = [](
+	std::ostream *out, 
+	const std::string &line
+) {
+	*out << line << '\n';
+	out->flush();
+};
+
+DEF_IMP_WRAP(
+	ostream_putLine,
+	void,
+	std::ostream *out, 
+	const std::string &line
+) {
+	ostream_putLine_true(out, line);
+}
+
+DEF_IMP_DEF(thread_join) = [](
+	std::thread *thread
+) {
+	thread->join();
+};
+
+DEF_IMP_WRAP(
+	thread_join, 
+	void, 
+	std::thread *thread
+) {
+	thread_join_true(thread);
+}
+
+DEF_IMP_DEF(unique_lock_unlock) = [](
+	std::unique_lock<std::mutex> *lock
+) {
+	lock->unlock();
+};
+
+DEF_IMP_WRAP(
+	unique_lock_unlock, 
+	void, 
+	std::unique_lock<std::mutex> *lock
+) {
+	unique_lock_unlock_true(lock);
 }
 
 }
