@@ -220,6 +220,9 @@ TEST_METHOD(test_loadPlugin) {
 		Assert::AreEqual(std::string("GetLastError"), help.getLine());
 		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(string_printf("%sをロードできませんでした。", "4"), help.getLine().substr(24));
+		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
+		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::LoadLibraryA", 5), help.getLine().substr(24));
 		Assert::AreEqual(std::string("LoadLibrary"), help.getLine());
 		Assert::AreEqual(std::string("6"), help.getLine());
@@ -287,7 +290,7 @@ TEST_METHOD(test_loadPlugins) {
 }
 
 TEST_METHOD(test_loadTrueDLL) {
-	{ // エラーをスローできるか？
+	{ // 本物のDLLが見つからなかったときに失敗できるか？
 		test_helper_t help;
 		context = {};
 		context.dll_name = help.getSeqStr();
@@ -304,6 +307,71 @@ TEST_METHOD(test_loadTrueDLL) {
 		}
 		Assert::AreEqual(std::string("getenv"), help.getLine());
 		Assert::AreEqual(std::string("PATH"), help.getLine());
+		Assert::AreEqual(std::string(), help.getLine());
+	}
+	{ // 本物のDLLをロードできなかったときに失敗できるか？
+		test_helper_t help;
+		context = {};
+		context.fake_dll_path = help.getSeqStr();
+		context.dll_name = help.getSeqStr();
+		context.log = help.getSeqPtr<std::ostream>();
+		api::GetLastError = [&]() -> DWORD {
+			help << "GetLastError\n";
+			return help.getSeq<DWORD>();
+		};
+		api::LoadLibrary_true = [&](LPCSTR lpLibFileName) -> HMODULE {
+			help << "LoadLibrary\n";
+			help << lpLibFileName << '\n';
+			return NULL;
+		};
+		std_::filesystem_equivalent_true = [&](
+			const std::filesystem::path &p1,
+			const std::filesystem::path &p2
+		) -> bool {
+			help << "filesystem_equivalent\n";
+			help << p1.string() << '\n';
+			help << p2.string() << '\n';
+			return false;
+		};
+		std_::filesystem_exists = [&](
+			const std::filesystem::path &p
+		) -> bool {
+			help << "filesystem_exists\n";
+			help << p.string() << '\n';
+			return true;
+		};
+		std_::getenv_true = [&](const char *name) -> char* {
+			help << "getenv\n";
+			help << name << '\n';
+			return help.getSeqStr().data();
+		};
+		std_::ostream_putLine_true = [&](
+			const std::ostream *out,
+			const std::string &line
+		) {
+			help << "ostream_putLine\n";
+			help << int(out) << '\n';
+			help << line << '\n';
+		};
+		try {
+			loadTrueDLL();
+			Assert::Fail();
+		} catch (const error_t &err) {
+			Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::LoadLibraryA", 5), err.getMessage());
+		}
+		Assert::AreEqual(std::string("getenv"), help.getLine());
+		Assert::AreEqual(std::string("PATH"), help.getLine());
+		Assert::AreEqual(std::string("filesystem_exists"), help.getLine());
+		Assert::AreEqual(std::string("4\\2"), help.getLine());
+		Assert::AreEqual(std::string("filesystem_equivalent"), help.getLine());
+		Assert::AreEqual(std::string("4\\2"), help.getLine());
+		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(std::string("LoadLibrary"), help.getLine());
+		Assert::AreEqual(std::string("4\\2"), help.getLine());
+		Assert::AreEqual(std::string("GetLastError"), help.getLine());
+		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
+		Assert::AreEqual(std::string("3"), help.getLine());
+		Assert::AreEqual(string_printf("%sをロードできませんでした。", "4\\2"), help.getLine().substr(24));
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	{ // 正しく動作できるか？
