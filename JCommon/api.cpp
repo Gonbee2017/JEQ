@@ -13,13 +13,13 @@ namespace jeq::api {
 
 // Win32 API関数のエラーを構築する。
 // エラーナンバーはGetLastErrorから取得する。
-error::error(
+error_t::error_t(
 	const std::string &func_name // 関数名。
-) : error(func_name, api::GetLastError()) {}
+) : error_t(func_name, api::GetLastError()) {}
 
 // Win32 API関数のエラーを構築する。
 // エラーメッセージを作成する。
-error::error(
+error_t::error_t(
 	const std::string &func_name, // 関数名。
 	DWORD number                  // エラーナンバー。
 ) :	func_name(func_name), 
@@ -30,13 +30,13 @@ error::error(
 
 // 関数名を取得する。
 const std::string & // 取得した関数名。
-error::getFunctionName() const {
+error_t::getFunctionName() const {
 	return func_name;
 }
 
 // エラーナンバーを取得する。
 DWORD // 取得したエラーナンバー。
-error::getNumber() const {
+error_t::getNumber() const {
 	return number;
 }
 
@@ -49,7 +49,7 @@ DEF_IMP_WRAP_EASY(
 	LPPAINTSTRUCT lpPaint
 ) {
 	HDC ret = BeginPaint_true(hWnd, lpPaint);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -77,7 +77,7 @@ DEF_IMP_WRAP_EASY(
 		y1, 
 		rop
 	);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -85,7 +85,7 @@ DEF_IMP_EASY(CallWindowProc);
 
 DEF_IMP_WRAP_EASY(ClientToScreen, BOOL, HWND hWnd, LPPOINT lpPoint) {
 	BOOL ret = ClientToScreen_true(hWnd, lpPoint);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -97,13 +97,13 @@ DEF_IMP_WRAP_EASY(
 	int cy
 ) {
 	HBITMAP ret = CreateCompatibleBitmap_true(hdc, cx, cy);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
 DEF_IMP_WRAP_EASY(CreateCompatibleDC, HDC, HDC hdc) {
 	HDC ret = CreateCompatibleDC_true(hdc);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -141,13 +141,13 @@ DEF_IMP_WRAP_EASY(
 		iPitchAndFamily, 
 		pszFaceName
 	);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
 DEF_IMP_WRAP_EASY(CreatePatternBrush, HBRUSH, HBITMAP hbm) {
 	HBRUSH ret = CreatePatternBrush_true(hbm);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -159,7 +159,7 @@ DEF_IMP_WRAP_EASY(
 	COLORREF color
 ) {
 	HPEN ret = CreatePen_true(iStyle, cWidth, color);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -193,7 +193,7 @@ DEF_IMP_WRAP_EASY(
 		hInstance, 
 		pParam
 	);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -211,7 +211,7 @@ DEF_IMP_WRAP_EASY(
 	HBRUSH hbr
 ) {
 	int ret = FillRect_true(hDC, lprc, hbr);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -225,7 +225,7 @@ DEF_IMP_WRAP_EASY(
 	LPRECT lpRect
 ) {
 	BOOL ret = GetClientRect_true(hWnd, lpRect);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -233,13 +233,13 @@ DEF_IMP_EASY(GetCommandLine);
 
 DEF_IMP_WRAP_EASY(GetCursorPos, BOOL, LPPOINT lpPoint) {
 	BOOL ret = GetCursorPos_true(lpPoint);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
 DEF_IMP_WRAP_EASY(GetDC, HDC, HWND hWnd) {
 	HDC ret = GetDC_true(hWnd);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -254,13 +254,13 @@ DEF_IMP_WRAP_EASY(
 	DWORD nSize
 ) {
 	DWORD ret = GetModuleFileName_true(hModule, pFilename, nSize);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
 DEF_IMP_WRAP_EASY(GetModuleHandle, HMODULE, LPCSTR lpModuleName) {
 	HMODULE ret = GetModuleHandle_true(lpModuleName);
-	if (!ret) throw api::error(__FUNCTION__);
+	if (!ret) throw api::error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -274,13 +274,13 @@ DEF_IMP_WRAP_EASY(
 	LPCSTR lpProcName
 ) {
 	FARPROC ret = GetProcAddress_true(hModule, lpProcName);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
 DEF_IMP_WRAP_EASY(GetSystemMetrics, int, int nIndex) {
 	int ret = GetSystemMetrics_true(nIndex);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -293,7 +293,7 @@ DEF_IMP_WRAP_EASY(
 	LONG ret = GetWindowLong_true(hWnd, nIndex);
 	if (!ret) {
 		DWORD number = api::GetLastError();
-		if (number) throw error(__FUNCTION__, number);
+		if (number) throw error_t(__FUNCTION__, number);
 	}
 	return ret;
 }
@@ -305,7 +305,7 @@ DEF_IMP_WRAP_EASY(
 	LPRECT lpRect
 ) {
 	int ret = GetWindowRect_true(hWnd, lpRect);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -319,7 +319,7 @@ DEF_IMP_WRAP_EASY(
 	int ret = GetWindowText_true(hWnd, lpString, nMaxCount);
 	if (!ret) {
 		DWORD number = api::GetLastError();
-		if (number)	throw error(__FUNCTION__, number);
+		if (number)	throw error_t(__FUNCTION__, number);
 	}
 	return ret;
 }
@@ -332,7 +332,7 @@ DEF_IMP_WRAP_EASY(
 	BOOL bErase
 ) {
 	BOOL ret = InvalidateRect_true(hWnd, lpRect, bErase);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -346,7 +346,7 @@ DEF_IMP_WRAP_EASY(
 	LPCSTR lpBitmapName
 ) {
 	HBITMAP ret = LoadBitmap_true(hInstance, lpBitmapName);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -357,13 +357,13 @@ DEF_IMP_WRAP_EASY(
 	LPCSTR lpCursorName
 ) {
 	HCURSOR ret = LoadCursor_true(hInstance, lpCursorName);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
 DEF_IMP_WRAP_EASY(LoadLibrary, HMODULE,	LPCSTR lpLibFileName) {
 	HMODULE ret = LoadLibrary_true(lpLibFileName);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -378,7 +378,7 @@ DEF_IMP_WRAP_EASY(
 	BOOL bRepaint
 ) {
 	BOOL ret = MoveWindow_true(hWnd, X, Y, nWidth, nHeight, bRepaint);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -390,13 +390,13 @@ DEF_IMP_WRAP_EASY(
 	int cpt
 ) {
 	BOOL ret = Polyline_true(hdc, apt, cpt);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
 DEF_IMP_WRAP_EASY(RegisterClass, ATOM, WNDCLASSA *lpWndClass) {
 	ATOM ret = RegisterClass_true(lpWndClass);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -404,7 +404,7 @@ DEF_IMP_EASY(ReleaseDC);
 
 DEF_IMP_WRAP_EASY(ScreenToClient, BOOL, HWND hWnd, LPPOINT lpPoint) {
 	BOOL ret = ScreenToClient_true(hWnd, lpPoint);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -415,7 +415,7 @@ DEF_IMP_WRAP_EASY(
 	HGDIOBJ h
 ) {
 	HGDIOBJ ret = SelectObject_true(hdc, h);
-	if (!ret || ret == HGDI_ERROR) throw error(__FUNCTION__);
+	if (!ret || ret == HGDI_ERROR) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -423,7 +423,7 @@ DEF_IMP_EASY(SendMessage);
 
 DEF_IMP_WRAP_EASY(SetActiveWindow, HWND, HWND hWnd) {
 	HWND ret = SetActiveWindow_true(hWnd);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -434,7 +434,7 @@ DEF_IMP_WRAP_EASY(
 	COLORREF color
 ) {
 	COLORREF ret = SetBkColor_true(hdc, color);
-	if (ret == CLR_INVALID) throw error(__FUNCTION__);
+	if (ret == CLR_INVALID) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -445,7 +445,7 @@ DEF_IMP_WRAP_EASY(
 	int mode
 ) {
 	int ret = SetBkMode_true(hdc, mode);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -458,7 +458,7 @@ DEF_IMP_WRAP_EASY(
 	LPPOINT lppt
 ) {
 	BOOL ret = SetBrushOrgEx_true(hdc, x, y, lppt);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -470,7 +470,7 @@ DEF_IMP_WRAP_EASY(
 	LONG dwNewLong
 ) {
 	DWORD ret = SetClassLong_true(hWnd, nIndex, dwNewLong);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -478,7 +478,7 @@ DEF_IMP_EASY(SetCursor);
 
 DEF_IMP_WRAP_EASY(SetFocus, HWND, HWND hWnd) {
 	HWND ret = SetFocus_true(hWnd);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -489,7 +489,7 @@ DEF_IMP_WRAP_EASY(
 	COLORREF color
 ) {
 	COLORREF ret = SetTextColor_true(hdc, color);
-	if (ret == CLR_INVALID) throw error(__FUNCTION__);
+	if (ret == CLR_INVALID) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -501,7 +501,7 @@ DEF_IMP_WRAP_EASY(
 	LONG_PTR dwNewLong
 ) {
 	LONG_PTR ret = SetWindowLongPtr_true(hWnd, nIndex, dwNewLong);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -517,7 +517,7 @@ DEF_IMP_WRAP_EASY(
 	UINT uFlags
 ) {
 	BOOL ret = SetWindowPos_true(hWnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -528,7 +528,7 @@ DEF_IMP_WRAP_EASY(
 	LPCSTR lpString
 ) {
 	BOOL ret = SetWindowText_true(hWnd, lpString);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -550,7 +550,7 @@ DEF_IMP_WRAP_EASY(
 		lpString,
 		lpFileName
 	);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 

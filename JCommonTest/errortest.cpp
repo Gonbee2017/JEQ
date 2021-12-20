@@ -12,12 +12,12 @@ TEST_CLASS(error_test) {
 
 TEST_METHOD(test_error) {
 	{ // ヌルコンストラクタは正しく動作できるか？
-		error err;
+		error_t err;
 		Assert::AreEqual(std::string(), err.getMessage());
 	}
 	{ // コンストラクタ(std::string)は正しく動作できるか？
 		test_helper_t hist;
-		error err(hist.getSeqStr());
+		error_t err(hist.getSeqStr());
 		Assert::AreEqual(std::string("1"), err.getMessage());
 	}
 }

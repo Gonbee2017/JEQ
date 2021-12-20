@@ -14,7 +14,7 @@ namespace jeq::dtr {
 
 // 標準関数のエラーを構築する。
 // エラーメッセージを作成する。
-error::error(
+error_t::error_t(
 	const std::string &func_name, // 関数名。
 	LONG number                   // エラーナンバー。
 ) : func_name(func_name), 
@@ -25,13 +25,13 @@ error::error(
 
 // 関数名を取得する。
 const std::string & // 取得した関数名。
-error::getFunctionName() const {
+error_t::getFunctionName() const {
 	return func_name;
 }
 
 // エラーナンバーを取得する。
 LONG // 取得したエラーナンバー。
-error::getNumber() const {
+error_t::getNumber() const {
 	return number;
 }
 
@@ -43,7 +43,7 @@ DEF_IMP_DEF(DetourAttach) = [] (PVOID *ppPointer, PVOID pDetour) -> LONG {
 
 DEF_IMP_WRAP(DetourAttach, LONG, PVOID *ppPointer, PVOID pDetour) {
 	LONG ret = DetourAttach_true(ppPointer, pDetour);
-	if (ret != NO_ERROR) throw error(__FUNCTION__, ret);
+	if (ret != NO_ERROR) throw error_t(__FUNCTION__, ret);
 	return ret;
 }
 
@@ -55,13 +55,13 @@ DEF_IMP_EASY(DetourTransactionAbort);
 
 DEF_IMP_WRAP_EASY(DetourTransactionBegin, LONG) {
 	LONG ret = DetourTransactionBegin_true();
-	if (ret != NO_ERROR) throw error(__FUNCTION__, ret);
+	if (ret != NO_ERROR) throw error_t(__FUNCTION__, ret);
 	return ret;
 }
 
 DEF_IMP_WRAP_EASY(DetourTransactionCommit, LONG) {
 	LONG ret = DetourTransactionCommit_true();
-	if (ret != NO_ERROR) throw error(__FUNCTION__, ret);
+	if (ret != NO_ERROR) throw error_t(__FUNCTION__, ret);
 	return ret;
 }
 

@@ -28,7 +28,7 @@ TEST_METHOD(test_BeginPaint) {
 			help.setSeqBase();
 			api::BeginPaint(help.getSeq<HWND>(1), help.getSeq<LPPAINTSTRUCT>(2));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::BeginPaint", 3), err.getMessage());
 		}
 		Assert::AreEqual(std::string("BeginPaint"), help.getLine());
@@ -90,7 +90,7 @@ TEST_METHOD(test_BitBlt) {
 				help.getSeq(9)
 			);
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::BitBlt", 10), err.getMessage());
 		}
 		Assert::AreEqual(std::string("BitBlt"), help.getLine());
@@ -163,7 +163,7 @@ TEST_METHOD(test_ClientToScreen) {
 			help.setSeqBase();
 			api::ClientToScreen(help.getSeq<HWND>(1), help.getSeq<LPPOINT>(2));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::ClientToScreen", 3), err.getMessage());
 		}
 		Assert::AreEqual(std::string("ClientToScreen"), help.getLine());
@@ -206,7 +206,7 @@ TEST_METHOD(test_CreateCompatibleBitmap) {
 			help.setSeqBase();
 			api::CreateCompatibleBitmap(help.getSeq<HDC>(1), help.getSeq(2), help.getSeq(3));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::CreateCompatibleBitmap", 4), err.getMessage());
 		}
 		Assert::AreEqual(std::string("CreateCompatibleBitmap"), help.getLine());
@@ -250,7 +250,7 @@ TEST_METHOD(test_CreateCompatibleDC) {
 		try {
 			api::CreateCompatibleDC(help.getSeq<HDC>(1));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::CreateCompatibleDC", 2), err.getMessage());
 		}
 		Assert::AreEqual(std::string("CreateCompatibleDC"), help.getLine());
@@ -316,7 +316,7 @@ TEST_METHOD(test_CreateFont) {
 				help.getSeqStr(14).c_str()
 			);
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::CreateFontA", 15), err.getMessage());
 		}
 		Assert::AreEqual(std::string("CreateFont"), help.getLine());
@@ -408,7 +408,7 @@ TEST_METHOD(test_CreatePatternBrush) {
 		try {
 			api::CreatePatternBrush(help.getSeq<HBITMAP>());
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::CreatePatternBrush", 2), err.getMessage());
 		}
 		Assert::AreEqual(std::string("CreatePatternBrush"), help.getLine());
@@ -448,7 +448,7 @@ TEST_METHOD(test_CreatePen) {
 			help.setSeqBase();
 			api::CreatePen(help.getSeq(1), help.getSeq(2), help.getSeq<COLORREF>(3));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::CreatePen", 4), err.getMessage());
 		}
 		Assert::AreEqual(std::string("CreatePen"), help.getLine());
@@ -519,7 +519,7 @@ TEST_METHOD(test_CreateWindowEx) {
 				help.getSeq<PVOID>(12)
 			);
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::CreateWindowExA", 13), err.getMessage());
 		}
 		Assert::AreEqual(std::string("CreateWindowEx"), help.getLine());
@@ -608,7 +608,7 @@ TEST_METHOD(test_FillRect) {
 			help.setSeqBase();
 			api::FillRect(help.getSeq<HDC>(1), help.getSeq<const RECT*>(2), help.getSeq<HBRUSH>(3));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::FillRect", 4), err.getMessage());
 		}
 		Assert::AreEqual(std::string("FillRect"), help.getLine());
@@ -653,7 +653,7 @@ TEST_METHOD(test_GetClientRect) {
 			help.setSeqBase();
 			api::GetClientRect(help.getSeq<HWND>(1), help.getSeq<LPRECT>(2));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::GetClientRect", 3), err.getMessage());
 		}
 		Assert::AreEqual(std::string("GetClientRect"), help.getLine());
@@ -691,7 +691,7 @@ TEST_METHOD(test_GetCursorPos) {
 		try {
 			api::GetCursorPos(help.getSeq<LPPOINT>());
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::GetCursorPos", 2), err.getMessage());
 		}
 		Assert::AreEqual(std::string("GetCursorPos"), help.getLine());
@@ -726,7 +726,7 @@ TEST_METHOD(test_GetDC) {
 		try {
 			api::GetDC(help.getSeq<HWND>());
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::GetDC", 2), err.getMessage());
 		}
 		Assert::AreEqual(std::string("GetDC"), help.getLine());
@@ -766,7 +766,7 @@ TEST_METHOD(test_GetModuleFileName) {
 			help.setSeqBase();
 			api::GetModuleFileName(help.getSeq<HMODULE>(1), help.getSeqStr(2).data(), help.getSeq<DWORD>(3));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::GetModuleFileNameA", 4), err.getMessage());
 		}
 		Assert::AreEqual(std::string("GetModuleFileName"), help.getLine());
@@ -810,7 +810,7 @@ TEST_METHOD(test_GetModuleHandle) {
 		try {
 			api::GetModuleHandle(help.getSeqStr().c_str());
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::GetModuleHandleA", 2), err.getMessage());
 		}
 		Assert::AreEqual(std::string("GetModuleHandle"), help.getLine());
@@ -849,7 +849,7 @@ TEST_METHOD(test_GetProcAddress) {
 			help.setSeqBase();
 			api::GetProcAddress(help.getSeq<HMODULE>(), help.getSeqStr().c_str());
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::GetProcAddress", 3), err.getMessage());
 		}
 		Assert::AreEqual(std::string("GetProcAddress"), help.getLine());
@@ -890,7 +890,7 @@ TEST_METHOD(test_GetSystemMetrics) {
 		try {
 			api::GetSystemMetrics(help.getSeq());
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::GetSystemMetrics", 2), err.getMessage());
 		}
 		Assert::AreEqual(std::string("GetSystemMetrics"), help.getLine());
@@ -928,7 +928,7 @@ TEST_METHOD(test_GetWindowLong) {
 			help.setSeqBase();
 			api::GetWindowLong(help.getSeq<HWND>(1), help.getSeq(2));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::GetWindowLongA", 3), err.getMessage());
 		}
 		Assert::AreEqual(std::string("GetWindowLong"), help.getLine());
@@ -989,7 +989,7 @@ TEST_METHOD(test_GetWindowRect) {
 			help.setSeqBase();
 			api::GetWindowRect(help.getSeq<HWND>(1), help.getSeq<LPRECT>(2));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::GetWindowRect", 3), err.getMessage());
 		}
 		Assert::AreEqual(std::string("GetWindowRect"), help.getLine());
@@ -1032,7 +1032,7 @@ TEST_METHOD(test_GetWindowText) {
 			help.setSeqBase();
 			api::GetWindowText(help.getSeq<HWND>(1), help.getSeq<LPSTR>(2), help.getSeq(3));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::GetWindowTextA", 4), err.getMessage());
 		}
 		Assert::AreEqual(std::string("GetWindowText"), help.getLine());
@@ -1107,7 +1107,7 @@ TEST_METHOD(test_InvalidateRect) {
 			help.setSeqBase();
 			api::InvalidateRect(help.getSeq<HWND>(1), help.getSeq<const RECT*>(2), help.getSeq(3) % 2);
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::InvalidateRect", 4), err.getMessage());
 		}
 		Assert::AreEqual(std::string("InvalidateRect"), help.getLine());
@@ -1155,7 +1155,7 @@ TEST_METHOD(test_LoadBitmap) {
 			help.setSeqBase();
 			api::LoadBitmap(help.getSeq<HINSTANCE>(), help.getSeqStr().c_str());
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::LoadBitmapA", 3), err.getMessage());
 		}
 		Assert::AreEqual(std::string("LoadBitmap"), help.getLine());
@@ -1200,7 +1200,7 @@ TEST_METHOD(test_LoadCursor) {
 			help.setSeqBase();
 			api::LoadCursor(help.getSeq<HINSTANCE>(1), help.getSeqStr(2).c_str());
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::LoadCursorA", 3), err.getMessage());
 		}
 		Assert::AreEqual(std::string("LoadCursor"), help.getLine());
@@ -1241,7 +1241,7 @@ TEST_METHOD(test_LoadLibrary) {
 		try {
 			api::LoadLibrary(help.getSeqStr().c_str());
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::LoadLibraryA", 2), err.getMessage());
 		}
 		Assert::AreEqual(std::string("LoadLibrary"), help.getLine());
@@ -1284,7 +1284,7 @@ TEST_METHOD(test_MoveWindow) {
 			help.setSeqBase();
 			api::MoveWindow(help.getSeq<HWND>(1), help.getSeq(2), help.getSeq(3), help.getSeq(4), help.getSeq(5), help.getSeq(6) % 2);
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::MoveWindow", 7), err.getMessage());
 		}
 		Assert::AreEqual(std::string("MoveWindow"), help.getLine());
@@ -1342,7 +1342,7 @@ TEST_METHOD(test_Polyline) {
 			help.setSeqBase();
 			api::Polyline(help.getSeq<HDC>(1), help.getSeq<const POINT*>(2), help.getSeq(3));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::Polyline", 4), err.getMessage());
 		}
 		Assert::AreEqual(std::string("Polyline"), help.getLine());
@@ -1386,7 +1386,7 @@ TEST_METHOD(test_RegisterClass) {
 		try {
 			api::RegisterClass(help.getSeq<WNDCLASSA*>());
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::RegisterClassA", 2), err.getMessage());
 		}
 		Assert::AreEqual(std::string("RegisterClass"), help.getLine());
@@ -1422,7 +1422,7 @@ TEST_METHOD(test_ScreenToClient) {
 			help.setSeqBase();
 			api::ScreenToClient(help.getSeq<HWND>(1), help.getSeq<LPPOINT>(2));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::ScreenToClient", 3), err.getMessage());
 		}
 		Assert::AreEqual(std::string("ScreenToClient"), help.getLine());
@@ -1461,7 +1461,7 @@ TEST_METHOD(test_SelectObject) {
 			help.setSeqBase();
 			api::SelectObject(help.getSeq<HDC>(1), help.getSeq<HGDIOBJ>(2));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::SelectObject", 3), err.getMessage());
 		}
 		Assert::AreEqual(std::string("SelectObject"), help.getLine());
@@ -1482,7 +1482,7 @@ TEST_METHOD(test_SelectObject) {
 			help.setSeqBase();
 			api::SelectObject(help.getSeq<HDC>(1), help.getSeq<HGDIOBJ>(2));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::SelectObject", 3), err.getMessage());
 		}
 		Assert::AreEqual(std::string("SelectObject"), help.getLine());
@@ -1520,7 +1520,7 @@ TEST_METHOD(test_SetActiveWindow) {
 		try {
 			api::SetActiveWindow(help.getSeq<HWND>());
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::SetActiveWindow", 2), err.getMessage());
 		}
 		Assert::AreEqual(std::string("SetActiveWindow"), help.getLine());
@@ -1559,7 +1559,7 @@ TEST_METHOD(test_SetBkColor) {
 			help.setSeqBase();
 			api::SetBkColor(help.getSeq<HDC>(1), help.getSeq<COLORREF>(2));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::SetBkColor", 3), err.getMessage());
 		}
 		Assert::AreEqual(std::string("SetBkColor"), help.getLine());
@@ -1601,7 +1601,7 @@ TEST_METHOD(test_SetBkMode) {
 			help.setSeqBase();
 			api::SetBkMode(help.getSeq<HDC>(1), help.getSeq(2));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::SetBkMode", 3), err.getMessage());
 		}
 		Assert::AreEqual(std::string("SetBkMode"), help.getLine());
@@ -1645,7 +1645,7 @@ TEST_METHOD(test_SetBrushOrgEx) {
 			help.setSeqBase();
 			api::SetBrushOrgEx(help.getSeq<HDC>(1), help.getSeq(2), help.getSeq(3), help.getSeq<LPPOINT>(4));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::SetBrushOrgEx", 5), err.getMessage());
 		}
 		Assert::AreEqual(std::string("SetBrushOrgEx"), help.getLine());
@@ -1697,7 +1697,7 @@ TEST_METHOD(test_SetClassLong) {
 			help.setSeqBase();
 			api::SetClassLong(help.getSeq<HWND>(1), help.getSeq(2), help.getSeq<LONG>(3));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::SetClassLongA", 4), err.getMessage());
 		}
 		Assert::AreEqual(std::string("SetClassLong"), help.getLine());
@@ -1741,7 +1741,7 @@ TEST_METHOD(test_SetFocus) {
 		try {
 			api::SetFocus(help.getSeq<HWND>());
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::SetFocus", 2), err.getMessage());
 		}
 		Assert::AreEqual(std::string("SetFocus"), help.getLine());
@@ -1780,7 +1780,7 @@ TEST_METHOD(test_SetTextColor) {
 			help.setSeqBase();
 			api::SetTextColor(help.getSeq<HDC>(1), help.getSeq<COLORREF>(2));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::SetTextColor", 3), err.getMessage());
 		}
 		Assert::AreEqual(std::string("SetTextColor"), help.getLine());
@@ -1826,7 +1826,7 @@ TEST_METHOD(test_SetWindowLongPtr) {
 			help.setSeqBase();
 			api::SetWindowLongPtr(help.getSeq<HWND>(1), help.getSeq(2), help.getSeq<LONG_PTR>(3));
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::SetWindowLongA", 4), err.getMessage());
 		}
 		Assert::AreEqual(std::string("SetWindowLongPtr"), help.getLine());
@@ -1887,7 +1887,7 @@ TEST_METHOD(test_SetWindowPos) {
 				help.getSeq<UINT>(7)
 			);
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::SetWindowPos", 8), err.getMessage());
 		}
 		Assert::AreEqual(std::string("SetWindowPos"), help.getLine());
@@ -1955,7 +1955,7 @@ TEST_METHOD(test_SetWindowText) {
 			help.setSeqBase();
 			api::SetWindowText(help.getSeq<HWND>(1), help.getSeqStr(2).c_str());
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::SetWindowTextA", 3), err.getMessage());
 		}
 		Assert::AreEqual(std::string("SetWindowText"), help.getLine());
@@ -2007,7 +2007,7 @@ TEST_METHOD(test_WritePrivateProfileString) {
 				help.getSeqStr(4).c_str()
 			);
 			Assert::Fail();
-		} catch (const api::error &err) {
+		} catch (const api::error_t &err) {
 			Assert::AreEqual(string_printf("%sÇ™é∏îsÇµÇ‹ÇµÇΩÅB(%d)", "jeq::api::WritePrivateProfileStringA", 5), err.getMessage());
 		}
 		Assert::AreEqual(std::string("WritePrivateProfileString"), help.getLine());
@@ -2047,7 +2047,7 @@ TEST_METHOD(test_WritePrivateProfileString) {
 
 TEST_METHOD(test_error) {
 	{ // ÉkÉãÉRÉìÉXÉgÉâÉNÉ^ÇÃåãâ ÇÕê≥ÇµÇ¢Ç©ÅH
-		api::error err;
+		api::error_t err;
 		Assert::AreEqual(std::string(), err.getFunctionName());
 		Assert::AreEqual(std::string(), err.getMessage());
 		Assert::AreEqual(0, int(err.getNumber()));
@@ -2057,7 +2057,7 @@ TEST_METHOD(test_error) {
 		api::GetLastError = [&]() -> DWORD {
 			return help.getSeq<DWORD>();
 		};
-		api::error err(help.getSeqStr().c_str());
+		api::error_t err(help.getSeqStr().c_str());
 		Assert::AreEqual(std::string("1"), err.getFunctionName());
 		Assert::AreEqual(std::string("1Ç™é∏îsÇµÇ‹ÇµÇΩÅB(2)"), err.getMessage());
 		Assert::AreEqual(2, int(err.getNumber()));
@@ -2065,7 +2065,7 @@ TEST_METHOD(test_error) {
 	{ // ÉRÉìÉXÉgÉâÉNÉ^(std::string,DWORD)ÇÃåãâ ÇÕê≥ÇµÇ¢Ç©ÅH
 		test_helper_t help;
 		help.setSeqBase();
-		api::error err(help.getSeqStr(1).c_str(), help.getSeq<DWORD>(2));
+		api::error_t err(help.getSeqStr(1).c_str(), help.getSeq<DWORD>(2));
 		Assert::AreEqual(std::string("1"), err.getFunctionName());
 		Assert::AreEqual(std::string("1Ç™é∏îsÇµÇ‹ÇµÇΩÅB(2)"), err.getMessage());
 		Assert::AreEqual(2, int(err.getNumber()));

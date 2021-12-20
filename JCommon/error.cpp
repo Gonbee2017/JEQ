@@ -9,13 +9,13 @@ namespace jeq {
 //// クラスメンバの定義
 
 // エラーを構築する。
-error::error(
+error_t::error_t(
 	const std::string &msg // エラーメッセージ。
 ) : msg(msg) {}
 
 // エラーメッセージを取得する。
 const std::string & // 取得したエラーメッセージ。
-error::getMessage() const {
+error_t::getMessage() const {
 	return msg;
 }
 

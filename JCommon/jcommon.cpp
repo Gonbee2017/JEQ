@@ -1,4 +1,4 @@
-﻿//// JEQ/共通処理ライブラリ/共通処理
+﻿//// JEQ/共通処理ライブラリ/本体
 
 //// インクルード
 
@@ -23,7 +23,7 @@
 
 namespace jeq {
 
-// 定数の定義。
+//// 定数の定義
 
 // CPUコアの数。
 const std::size_t HARDWARE_CONCURRENCY = std::thread::hardware_concurrency();
@@ -117,7 +117,7 @@ thread_pool_t::ask(
 
 // スレッドプールのインスタンスデータを破棄する。
 // 待機中のワーカーはすぐに離脱させ、実行中のワーカーは完了次第
-// 離脱させる。すべてのワーカースレッドが離脱したら、制御を戻す。
+// 離脱させる。すべてのワーカースレッドが離脱したら制御を戻す。
 thread_pool_t::data_t::~data_t() {
 	auto lock = std_::make_unique_lock(&mutex);
 	leave = true;
@@ -222,7 +222,7 @@ ini_getKeyValue(
 			key_name.c_str(),
 			def_value.c_str(),
 			value.data(), 
-			value.size(), 
+			DWORD(value.size()), 
 			ini_path.string().c_str()
 		);
 		if (len != value.size() - 1) break;
@@ -249,7 +249,7 @@ ini_loadSection(
 		len = api::GetPrivateProfileSection(
 			section_name.c_str(), 
 			section.data(), 
-			section.size(), 
+			DWORD(section.size()), 
 			ini_path.string().c_str()
 		);
 		if (len != section.size() - 2) break;
@@ -400,7 +400,7 @@ string_sjisToUtf16(
 		src.data(), 
 		-1, 
 		dest.data(), 
-		dest.size()
+		int(dest.size())
 	)) return std::wstring();
 	// 終端の'\0'を切り捨てる。
 	dest.resize(dest_len - 1);
@@ -454,7 +454,7 @@ window_getText(
 		len = api::GetWindowText(
 			hwnd, 
 			text.data(), 
-			text.size()
+			int(text.size())
 		);
 		if (len != int(text.size()) - 1) break;
 		text.resize(text.size() * 2);
@@ -497,7 +497,7 @@ wstring_utf16ToUtf8(
 		src.data(), 
 		-1, 
 		dest.data(), 
-		dest.size(), 
+		int(dest.size()), 
 		nullptr, 
 		nullptr
 	)) return std::string();

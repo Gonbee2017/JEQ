@@ -875,7 +875,7 @@ TEST_METHOD(test_string_split) {
 	{ // 半角の文字列を分割できるか？空文字列は許す。
 		std::string str = "a,bb,,ccc,,,";
 		auto toks = string_split(str, ',');
-		Assert::AreEqual(std::size_t(7), toks.size());
+		Assert::AreEqual(7, int(toks.size()));
 		Assert::AreEqual(std::string("a"),   toks[0]);
 		Assert::AreEqual(std::string("bb"),  toks[1]);
 		Assert::AreEqual(std::string(""),    toks[2]);
@@ -887,7 +887,7 @@ TEST_METHOD(test_string_split) {
 	{ // 半角の文字列を分割できるか？空文字列は許さない。
 		std::string str = "a,bb,,ccc,,,";
 		auto toks = string_split(str, ',', false);
-		Assert::AreEqual(std::size_t(3), toks.size());
+		Assert::AreEqual(3, int(toks.size()));
 		Assert::AreEqual(std::string("a"),   toks[0]);
 		Assert::AreEqual(std::string("bb"),  toks[1]);
 		Assert::AreEqual(std::string("ccc"), toks[2]);
@@ -895,7 +895,7 @@ TEST_METHOD(test_string_split) {
 	{ // 全角の文字列を分割できるか？空文字列は許す。
 		std::string str = "い,ろろ,,ははは,,,";
 		auto toks = string_split(str, ',');
-		Assert::AreEqual(std::size_t(7), toks.size());
+		Assert::AreEqual(7, int(toks.size()));
 		Assert::AreEqual(std::string("い"),     toks[0]);
 		Assert::AreEqual(std::string("ろろ"),   toks[1]);
 		Assert::AreEqual(std::string(""),       toks[2]);

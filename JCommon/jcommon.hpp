@@ -1,8 +1,9 @@
-//// JEQ/共通処理ライブラリ/共通処理
+//// JEQ/共通処理ライブラリ/本体
 
 // 複数のEXEやDLLで共通する処理をこのライブラリにまとめて配置する。
-// ただし今のところ共通していなくても、いつか共通しそうな処理、
+// ただし今のところ共通していなくても、いつかしそうな汎用的な処理、
 // 例えば文字エンコーディング変換のような処理もここに配置する。
+// またプラットフォームはx86とx64の両方に対応する。
 
 #ifndef JEQ_JCOMMON_HPP
 #define JEQ_JCOMMON_HPP
@@ -64,7 +65,7 @@
 
 namespace jeq {
 
-// 定数の宣言。
+//// 定数の宣言
 
 extern const std::size_t HARDWARE_CONCURRENCY;
 
@@ -371,7 +372,7 @@ test_helper_t::getSeq(
 ) {
 	++data->seq;
 	int seq;
-	if (offset) seq = data->seq_base + offset;
+	if (offset) seq = data->seq_base + int(offset);
 	else seq = data->seq;
 	return X(seq);
 }

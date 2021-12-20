@@ -170,7 +170,7 @@ int // おそらく0なら成功、それ以外なら失敗。
 eqgame_t::CXWndManager_DrawCursor_detour() {
 	try {
 		if (cursor_isOverWindow(context.jchat_bar.getHandle())) return 0;
-	} catch (const error &err) {
+	} catch (const error_t &err) {
 		context.fail(err);
 	}
 	return (this->*CXWndManager_DrawCursor_target)();
@@ -214,7 +214,7 @@ eqgame_t::KeypressHandler_HandleKeyUp_detour(
 			context.jchat_bar.activate(key_combo);
 			return true;
 		}
-	} catch (const error &err) {
+	} catch (const error_t &err) {
 		context.fail(err);
 	}
 	return (this->*KeypressHandler_HandleKeyUp_target)(key_combo);
@@ -438,7 +438,7 @@ LRESULT CALLBACK jchat_bar_t::WindowProc(
 	else {
 		try {
 			res = (wnd.*handler->second)(hwnd, msg, wparam, lparam);
-		} catch (const error &err) {
+		} catch (const error_t &err) {
 			// WM_CREATEはCreateWindowEx関数の中から送信されるので、
 			// ここではfail関数を呼び出さず、ログを書き込むだけにする。
 			if (msg == WM_CREATE) {
@@ -476,7 +476,7 @@ CALLBACK jchat_bar_t::channel_WindowProc_sub(
 	else {
 		try {
 			res = (wnd.*handler->second)(hwnd, msg, wparam, lparam);
-		} catch (const error &err) {
+		} catch (const error_t &err) {
 			context.fail(err);
 		}
 	}
@@ -509,7 +509,7 @@ CALLBACK jchat_bar_t::edit_WindowProc_sub(
 	else {
 		try {
 			res = (wnd.*handler->second)(hwnd, msg, wparam, lparam);
-		} catch (const error &err) {
+		} catch (const error_t &err) {
 			context.fail(err);
 		}
 	}
@@ -822,7 +822,7 @@ jchat_bar_t::onDestroy(
 			stringize(rect.right - rect.left)
 		);
 		storeRegistry();
-	} catch (const error &err) {
+	} catch (const error_t &err) {
 		putLog(context.log.get(), err.getMessage());
 	}
 	data = std::make_shared<data_t>();
@@ -1642,7 +1642,7 @@ jchat_bar_t::text_jChatToEQChat(
 // jchat.logにエラーログを書き込み、jchat.dllを停止する。
 // Detourが解除されるので、EQチャットは元に戻る。
 void context_t::fail(
-	const error &err // 失敗の原因となったエラー。
+	const error_t &err // 失敗の原因となったエラー。
 ) {
 	if (log) putLog(context.log.get(), err.getMessage());
 	release();
@@ -1663,7 +1663,7 @@ void context_t::release() {
 		detour_exits.clear();
 		dtr::DetourTransactionCommit();
 		abort_exit.procedure() = nullptr;
-	} catch (const error &err) {
+	} catch (const error_t &err) {
 		if (log) putLog(context.log.get(), err.getMessage());
 	}
 	reverseClear(exits);
@@ -1831,7 +1831,7 @@ getOffset(
 		"0"
 	), 0, std::hex);
 	if (!offset)
-		throw error(string_printf(
+		throw error_t(string_printf(
 			"Offsetセクションの%sキーが不正です。", 
 			name.c_str()
 		));
@@ -1875,7 +1875,7 @@ void onGameStateChange() {
 		} else if (bar.getHandle() && 
 			api::IsWindowVisible(bar.getHandle())
 		) api::ShowWindow(bar.getHandle(), SW_HIDE);
-	} catch (const error &err) {
+	} catch (const error_t &err) {
 		context.fail(err);
 	}
 }
@@ -1890,7 +1890,7 @@ onProcessAttach(
 	try {
 		context.startup(hinstDLL);
 		bindAddressAndDetourAttach_early();
-	} catch (const error &err) {
+	} catch (const error_t &err) {
 		context.fail(err);
 		return FALSE;
 	}
@@ -1913,7 +1913,7 @@ void onScreenModeChange() {
 		if (bar.getHandle() &&
 			api::IsWindowVisible(bar.getHandle())
 		) bar.fixPos();
-	} catch (const error &err) {
+	} catch (const error_t &err) {
 		context.fail(err);
 	}
 }

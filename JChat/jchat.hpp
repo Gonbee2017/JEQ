@@ -468,7 +468,7 @@ struct context_t {
 		} window; // ウインドウに関する設定。
 	} ini; // jchat.iniの内容。
 
-	void fail(const error &err);
+	void fail(const error_t &err);
 	void release();
 	void startup(HINSTANCE hinstDLL);
 };

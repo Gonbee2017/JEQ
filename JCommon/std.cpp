@@ -22,13 +22,13 @@ namespace jeq::std_ {
 
 // 標準関数のエラーを構築する。
 // エラーナンバーはerrnoから取得する。
-error::error(
+error_t::error_t(
 	const std::string &func_name // 関数名。
-) : error(func_name, geterrno()) {}
+) : error_t(func_name, geterrno()) {}
 
 // 標準関数のエラーを構築する。
 // エラーメッセージを作成する。
-error::error(
+error_t::error_t(
 	const std::string &func_name, // 関数名。
 	int number                    // エラーナンバー。
 ) : func_name(func_name), 
@@ -39,13 +39,13 @@ error::error(
 
 // 関数名を取得する。
 const std::string & // 取得した関数名。
-error::getFunctionName() const {
+error_t::getFunctionName() const {
 	return func_name;
 }
 
 // エラーナンバーを取得する。
 int // 取得したエラーナンバー。
-error::getNumber() const {
+error_t::getNumber() const {
 	return number;
 }
 
@@ -101,7 +101,7 @@ DEF_IMP_WRAP(
 	try {
 		return filesystem_equivalent_true(p1, p2);
 	} catch (const std::system_error &err) {
-		throw error(__FUNCTION__, err.code().value());
+		throw error_t(__FUNCTION__, err.code().value());
 	}
 }
 
@@ -115,7 +115,7 @@ DEF_IMP_WRAP_EASY(
 	const char *name
 ) {
 	char *ret = getenv_true(name);
-	if (!ret) throw error(__FUNCTION__);
+	if (!ret) throw error_t(__FUNCTION__);
 	return ret;
 }
 
@@ -140,7 +140,7 @@ DEF_IMP_WRAP(
 	try {
 		ostream_exceptions_set(out.get(), std::ios_base::failbit);
 	} catch (const std::ios_base::failure &err) {
-		throw error(__FUNCTION__, err.code().value());
+		throw error_t(__FUNCTION__, err.code().value());
 	}
 	return out;
 }

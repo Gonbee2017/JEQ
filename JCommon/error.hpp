@@ -15,11 +15,11 @@ namespace jeq {
 //// 型の定義
 
 // エラーを表す。
-class error {
+class error_t {
 public:
-	error() = default;
-	virtual ~error() = default;
-	explicit error(const std::string &msg);
+	error_t() = default;
+	virtual ~error_t() = default;
+	explicit error_t(const std::string &msg);
 	const std::string &getMessage() const;
 protected:
 	std::string msg; // エラーメッセージ。

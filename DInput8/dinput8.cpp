@@ -79,7 +79,15 @@ void context_t::startup(
 void loadPlugin(
 	const std::string &plugin_name // プラグインの名前。
 ) {
-	HMODULE plugin_handle = api::LoadLibrary(plugin_name.c_str());
+	// 失敗したら、ログを出力してスキップする。
+	HMODULE plugin_handle;
+	try {
+		plugin_handle = api::LoadLibrary(plugin_name.c_str());
+	} catch (const error_t &err) {
+		putLog(context.log.get(), err.getMessage());
+		return;
+	}
+	// 成功したらハンドルと脱出処理を追加する。
 	context.plugin_handles.emplace_back(plugin_handle);
 	context.exits.emplace_back([plugin_handle] {
 		api::FreeLibrary(plugin_handle);
@@ -114,7 +122,7 @@ void loadTrueDLL() {
 	// サーチパス(環境変数PATH)から本物のdinput8.dllを検索する。
 	context.true_dll_path = searchTrueDLL();
 	if (context.true_dll_path.empty())
-		throw error(string_printf(
+		throw error_t(string_printf(
 			"本物の%sが見つかりませんでした。", 
 			context.dll_name.c_str()
 		));
@@ -144,7 +152,7 @@ onProcessAttach(
 		context.startup(hinstDLL);
 		loadTrueDLL();
 		loadPlugins();
-	} catch (const error &err) {
+	} catch (const error_t &err) {
 		if (context.log) putLog(context.log.get(), err.getMessage());
 		return FALSE;
 	}

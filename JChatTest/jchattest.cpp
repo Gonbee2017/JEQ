@@ -107,7 +107,7 @@ TEST_METHOD(test_bindAddressAndDetourAttach_early) {
 		try {
 			bindAddressAndDetourAttach_early();
 			Assert::Fail();
-		} catch (const error &err) {
+		} catch (const error_t &err) {
 			Assert::AreEqual(string_printf("Offsetセクションの%sキーが不正です。", "CEverQuest"), err.getMessage());
 		}
 		Assert::AreEqual(std::string("DetourTransactionBegin"), help.getLine());
@@ -264,7 +264,7 @@ TEST_METHOD(test_bindAddressAndDetourAttach_lazy) {
 		try {
 			bindAddressAndDetourAttach_lazy();
 			Assert::Fail();
-		} catch (const error &err) {
+		} catch (const error_t &err) {
 			Assert::AreEqual(string_printf("Offsetセクションの%sキーが不正です。", "CEverQuest_InterpretCmd"), err.getMessage());
 		}
 		Assert::AreEqual(std::string("DetourTransactionBegin"), help.getLine());
@@ -401,7 +401,7 @@ TEST_METHOD(test_context_fail) {
 			help << "DetourTransactionCommit\n";
 			return NO_ERROR;
 		};
-		context.fail(error(help.getSeqStr()));
+		context.fail(error_t(help.getSeqStr()));
 		Assert::AreEqual(std::string("DetourTransactionBegin"), help.getLine());
 		Assert::AreEqual(std::string("DetourTransactionCommit"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
@@ -426,7 +426,7 @@ TEST_METHOD(test_context_fail) {
 			help << int(out) << '\n';
 			help << line << '\n';
 		};
-		context.fail(error(help.getSeqStr()));
+		context.fail(error_t(help.getSeqStr()));
 		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string("2"), help.getLine().substr(24));
@@ -1433,7 +1433,7 @@ TEST_METHOD(test_getOffset) {
 		try {
 			getOffset(help.getSeqStr());
 			Assert::Fail();
-		} catch (const error &err) {
+		} catch (const error_t &err) {
 			Assert::AreEqual(string_printf("Offsetセクションの%sキーが不正です。", "2"), err.getMessage());
 		}
 		Assert::AreEqual(std::string("GetPrivateProfileString"), help.getLine());
@@ -1466,7 +1466,7 @@ TEST_METHOD(test_getOffset) {
 		try {
 			getOffset(help.getSeqStr());
 			Assert::Fail();
-		} catch (const error &err) {
+		} catch (const error_t &err) {
 			Assert::AreEqual(string_printf("Offsetセクションの%sキーが不正です。", "2"), err.getMessage());
 		}
 		Assert::AreEqual(std::string("GetPrivateProfileString"), help.getLine());

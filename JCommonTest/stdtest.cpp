@@ -14,7 +14,7 @@ TEST_CLASS(std_test) {
 	
 TEST_METHOD(test_error) {
 	{ // ヌルコンストラクタは正しく動作できるか？
-		std_::error err;
+		std_::error_t err;
 		Assert::AreEqual(std::string(), err.getFunctionName());
 		Assert::AreEqual(std::string(), err.getMessage());
 		Assert::AreEqual(0, err.getNumber());
@@ -24,7 +24,7 @@ TEST_METHOD(test_error) {
 		std_::geterrno = [&]() -> int {
 			return help.getSeq();
 		};
-		std_::error err(help.getSeqStr());
+		std_::error_t err(help.getSeqStr());
 		Assert::AreEqual(std::string("1"), err.getFunctionName());
 		Assert::AreEqual(std::string("1が失敗しました。(2)"), err.getMessage());
 		Assert::AreEqual(2, err.getNumber());
@@ -32,7 +32,7 @@ TEST_METHOD(test_error) {
 	{ // コンストラクタ(std::string,int)は正しく動作できるか？
 		test_helper_t help;
 		help.setSeqBase();
-		std_::error err(help.getSeqStr(1), help.getSeq(2));
+		std_::error_t err(help.getSeqStr(1), help.getSeq(2));
 		Assert::AreEqual(std::string("1"), err.getFunctionName());
 		Assert::AreEqual(std::string("1が失敗しました。(2)"), err.getMessage());
 		Assert::AreEqual(2, err.getNumber());
@@ -53,7 +53,7 @@ TEST_METHOD(test_filesystem_equivalent) {
 			help.setSeqBase();
 			std_::filesystem_equivalent(help.getSeqStr(1), help.getSeqStr(2));
 			Assert::Fail();
-		} catch (const std_::error &err) {
+		} catch (const std_::error_t &err) {
 			Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::std_::filesystem_equivalent", 3), err.getMessage());
 		}
 		Assert::AreEqual(std::string("filesystem_equivalent"), help.getLine());
@@ -93,7 +93,7 @@ TEST_METHOD(test_getenv) {
 		try {
 			std_::getenv(help.getSeqStr().c_str());
 			Assert::Fail();
-		} catch (const std_::error &err) {
+		} catch (const std_::error_t &err) {
 			Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::std_::getenv", 2), err.getMessage());
 		}
 		Assert::AreEqual(std::string("getenv"), help.getLine());
@@ -135,7 +135,7 @@ TEST_METHOD(test_make_ofstream) {
 			help.setSeqBase();
 			std_::make_ofstream(help.getSeqStr(1), help.getSeq<std::ios_base::openmode>(2));
 			Assert::Fail();
-		} catch (const std_::error &err) {
+		} catch (const std_::error_t &err) {
 			Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::std_::make_ofstream", 1), err.getMessage());
 		}
 		Assert::AreEqual(std::string("make_ofstream"), help.getLine());

@@ -99,10 +99,10 @@ namespace jeq::dtr {
 
 // Detours関数のエラーを表す。
 // 関数名とエラーナンバーを保持する。
-class error : public jeq::error {
+class error_t : public jeq::error_t {
 public:
-	error() = default;
-	error(const std::string &func_name, LONG number);
+	error_t() = default;
+	error_t(const std::string &func_name, LONG number);
 	LONG getNumber() const;
 	const std::string &getFunctionName() const;
 protected:

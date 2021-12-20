@@ -25,7 +25,7 @@ TEST_METHOD(test_DetourAttach) {
 			help.setSeqBase();
 			dtr::DetourAttach(help.getSeq<PVOID*>(1), help.getSeq<PVOID>(2));
 			Assert::Fail();
-		} catch (const dtr::error &err) {
+		} catch (const dtr::error_t &err) {
 			Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::dtr::DetourAttach", ERROR_INVALID_OPERATION), err.getMessage());
 		}
 		Assert::AreEqual(std::string("DetourAttach"), help.getLine());
@@ -61,7 +61,7 @@ TEST_METHOD(test_DetourTransactionBegin) {
 		try {
 			dtr::DetourTransactionBegin();
 			Assert::Fail();
-		} catch (const dtr::error &err) {
+		} catch (const dtr::error_t &err) {
 			Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::dtr::DetourTransactionBegin", ERROR_INVALID_OPERATION), err.getMessage());
 		}
 		Assert::AreEqual(std::string("DetourTransactionBegin"), help.getLine());
@@ -89,7 +89,7 @@ TEST_METHOD(test_DetourTransactionCommit) {
 		try {
 			dtr::DetourTransactionCommit();
 			Assert::Fail();
-		} catch (const dtr::error &err) {
+		} catch (const dtr::error_t &err) {
 			Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::dtr::DetourTransactionCommit", ERROR_INVALID_OPERATION), err.getMessage());
 		}
 		Assert::AreEqual(std::string("DetourTransactionCommit"), help.getLine());
@@ -109,7 +109,7 @@ TEST_METHOD(test_DetourTransactionCommit) {
 	
 TEST_METHOD(test_error) {
 	{ // ヌルコンストラクタは正しく動作できるか？
-		dtr::error err;
+		dtr::error_t err;
 		Assert::AreEqual(std::string(), err.getFunctionName());
 		Assert::AreEqual(std::string(), err.getMessage());
 		Assert::AreEqual(0, int(err.getNumber()));
@@ -117,7 +117,7 @@ TEST_METHOD(test_error) {
 	{ // コンストラクタ(std::string,LONG)は正しく動作できるか？
 		test_helper_t help;
 		help.setSeqBase();
-		dtr::error err(help.getSeqStr(1), help.getSeq<LONG>(2));
+		dtr::error_t err(help.getSeqStr(1), help.getSeq<LONG>(2));
 		Assert::AreEqual(std::string("1"), err.getFunctionName());
 		Assert::AreEqual(std::string("1が失敗しました。(2)"), err.getMessage());
 		Assert::AreEqual(2, int(err.getNumber()));

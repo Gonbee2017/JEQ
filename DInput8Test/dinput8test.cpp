@@ -177,31 +177,56 @@ TEST_METHOD(test_loadPlugin) {
 	{ // 正しく動作できるか？
 		test_helper_t help;
 		context = {};
+		context.log = help.getSeqPtr<std::ostream>();
+		int index = 0;
 		api::FreeLibrary = [&](HMODULE hLibModule) -> BOOL {
 			help << "FreeLibrary\n";
 			help << int(hLibModule) << '\n';
 			return TRUE;
 		};
+		api::GetLastError = [&]() -> DWORD {
+			help << "GetLastError\n";
+			return help.getSeq<DWORD>();
+		};
 		api::LoadLibrary_true = [&](LPCSTR lpLibFileName) -> HMODULE {
 			help << "LoadLibrary\n";
 			help << lpLibFileName << '\n';
-			return help.getSeq<HMODULE>();
+			HMODULE hmodule;
+			if (index == 1) hmodule = NULL;
+			else hmodule = help.getSeq<HMODULE>();
+			++index;
+			return hmodule;
+		};
+		std_::ostream_putLine_true = [&](
+			const std::ostream *out,
+			const std::string &line
+		) {
+			help << "ostream_putLine\n";
+			help << int(out) << '\n';
+			help << line << '\n';
 		};
 		loadPlugin(help.getSeqStr());
 		loadPlugin(help.getSeqStr());
+		loadPlugin(help.getSeqStr());
 		Assert::AreEqual(2, int(context.plugin_handles.size()));
-		Assert::AreEqual(2, int(context.plugin_handles[0]));
-		Assert::AreEqual(4, int(context.plugin_handles[1]));
+		Assert::AreEqual(3, int(context.plugin_handles[0]));
+		Assert::AreEqual(7, int(context.plugin_handles[1]));
 		Assert::AreEqual(2, int(context.exits.size()));
 		reverseClear(context.exits);
 		Assert::AreEqual(std::string("LoadLibrary"), help.getLine());
-		Assert::AreEqual(std::string("1"), help.getLine());
-		Assert::AreEqual(std::string("LoadLibrary"), help.getLine());
-		Assert::AreEqual(std::string("3"), help.getLine());
-		Assert::AreEqual(std::string("FreeLibrary"), help.getLine());
-		Assert::AreEqual(std::string("4"), help.getLine());
-		Assert::AreEqual(std::string("FreeLibrary"), help.getLine());
 		Assert::AreEqual(std::string("2"), help.getLine());
+		Assert::AreEqual(std::string("LoadLibrary"), help.getLine());
+		Assert::AreEqual(std::string("4"), help.getLine());
+		Assert::AreEqual(std::string("GetLastError"), help.getLine());
+		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
+		Assert::AreEqual(std::string("1"), help.getLine());
+		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::LoadLibraryA", 5), help.getLine().substr(24));
+		Assert::AreEqual(std::string("LoadLibrary"), help.getLine());
+		Assert::AreEqual(std::string("6"), help.getLine());
+		Assert::AreEqual(std::string("FreeLibrary"), help.getLine());
+		Assert::AreEqual(std::string("7"), help.getLine());
+		Assert::AreEqual(std::string("FreeLibrary"), help.getLine());
+		Assert::AreEqual(std::string("3"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 }
@@ -274,7 +299,7 @@ TEST_METHOD(test_loadTrueDLL) {
 		try {
 			loadTrueDLL();
 			Assert::Fail();
-		} catch (const error &err) {
+		} catch (const error_t &err) {
 			Assert::AreEqual(string_printf("本物の%sが見つかりませんでした。", "1"), err.getMessage());
 		}
 		Assert::AreEqual(std::string("getenv"), help.getLine());

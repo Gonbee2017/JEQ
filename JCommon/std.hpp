@@ -28,11 +28,11 @@ namespace jeq::std_ {
 
 // 標準関数のエラーを表す。
 // 関数名とエラーナンバーを保持する。
-class error : public jeq::error {
+class error_t : public jeq::error_t {
 public:
-	error() = default;
-	explicit error(const std::string &func_name);
-	error(const std::string &func_name, int number);
+	error_t() = default;
+	explicit error_t(const std::string &func_name);
+	error_t(const std::string &func_name, int number);
 	const std::string &getFunctionName() const;
 	int getNumber() const;
 protected:
