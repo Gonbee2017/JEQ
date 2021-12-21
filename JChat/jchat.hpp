@@ -453,7 +453,7 @@ struct context_t {
 	jchat_bar_t jchat_bar;                  // 日本語チャットバー。
 	std::shared_ptr<std::ostream> log;      // jchat.logの出力ストリーム。
 	std::filesystem::path log_path;         // jchat.logのパス。
-	screen_modes screen_mode;               // 画面モードフラグ。
+	screen_modes screen_mode;               // 画面モード。
 	struct {
 		struct {
 			std::string command_symbols; // コマンド記号の列。

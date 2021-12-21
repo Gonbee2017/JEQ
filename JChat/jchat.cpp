@@ -27,8 +27,8 @@
 //// マクロの定義
 
 // DetourAttach関数の呼び出しを含むトランザクションを開始する。
-// これ以降、DetourAttachしたら、ローカル変数detach_procsに
-// その関数をDetourDetachする処理を追加すること。
+// トランザクション中に関数をDetourAttachしたら、ローカル変数
+// detach_procsにその関数をDetourDetachする処理を追加すること。
 #define BEGIN_DETOUR_ATTACH() \
 	dtr::DetourTransactionBegin();\
 	scope_exit_t abort_exit([] {\
@@ -253,7 +253,7 @@ void jchat_bar_t::registerClass() {
 // 日本語チャットバーをアクティブにする。
 // きっかけがスラッシュキーならテキストを"/"にして、続けて入力できる
 // ようにキャレットを移動してから、ウインドウをアクティブにする。
-// それ以外なら入力欄を変更せず、ただアクティブにする。
+// それ以外なら入力欄は変更せず、ただ単にアクティブにする。
 void jchat_bar_t::activate(
 	const KeyCombo &key_combo // きっかけになったキーの組み合わせ。
 ) {
@@ -298,7 +298,7 @@ void jchat_bar_t::create() {
 // 位置ズレは画面モードの変更によって生じる。
 // またチャットバーがメインウインドウの外に位置しているときに、
 // フルスクリーンモードに変更されると、チャットバーが画面外に
-// 出て見えなくなってしまうため、画面の中心に移動する。
+// はみ出して見えなくなってしまうため、画面の中心に移動する。
 void jchat_bar_t::fixPos() {
 	// アイコンモードなら何もしない。
 	if (context.screen_mode == screen_modes::ICONIC) return;
@@ -516,8 +516,8 @@ CALLBACK jchat_bar_t::edit_WindowProc_sub(
 	return res;
 }
 
-// 日本語チャットのチャンネル欄で文字が入力されたときに呼び出される。
-// Enterキーが押されたら、入力行を実行し、今までの発言リストに追加する。
+// 日本語チャットのチャンネル欄に文字が入力されたときに呼び出される。
+// Enterキーが押されたら、入力内容を実行し、今までの発言リストに追加する。
 // Shift+Enterキーが押されたら、入力行をよく使う発言リストに追加する。
 // Escキーが押されたらメインウインドウをアクティブにする。
 // Tabキーが押されたらフォーカスを移動する。
@@ -555,7 +555,7 @@ jchat_bar_t::channel_onSysKeyDown(
 	);
 }
 
-// 日本語チャットのコントロールで文字が入力されたときに呼び出される。
+// 日本語チャットのコントロールに文字が入力されたときに呼び出される。
 // Enterキーが押されたら、入力行を実行し、今までの発言リストに追加する。
 // Shift+Enterキーが押されたら、入力行をよく使う発言リストに追加する。
 // Escキーが押されたらメインウインドウをアクティブにする。
@@ -612,7 +612,7 @@ jchat_bar_t::ctl_onSysKeyDown(
 	);
 }
 
-// 日本語チャットの入力欄で文字が入力されたときに呼び出される。
+// 日本語チャットの入力欄に文字が入力されたときに呼び出される。
 // Ctrl+Aキーが押されたら全テキストを選択する。
 // Enterキーが押されたら、入力行を実行し、今までの発言リストに追加する。
 // Shift+Enterキーが押されたら、入力行をよく使う発言リストに追加する。
@@ -831,7 +831,7 @@ jchat_bar_t::onDestroy(
 
 // 日本語チャットバーがドラッグされているときに、
 // 最小サイズと最大サイズを取得するために呼び出される。
-// 問題なのは短くされ過ぎることだけなので最小幅を指定する。
+// まずいのは短くされ過ぎることだけなので最小幅を指定する。
 LRESULT // 結果。0なら処理済み。
 jchat_bar_t::onGetMinMaxInfo(
 	HWND hwnd,     // チャットバーのハンドル。
@@ -1266,7 +1266,7 @@ void jchat_bar_t::edit_setLine(
 	data->edit.change_mode = change_modes::EDIT;
 }
 
-// 日本語チャットに入力された行を実行し、今までの発言リストに追加する。
+// 日本語チャットに入力された内容を実行し、今までの発言リストに追加する。
 // ただしShiftキーが押下なら、実行せず、よく使う発言リストに追加する。
 void jchat_bar_t::execute(
 	SHORT shift_state // Shiftキーの状態。正なら離上、負なら押下。
@@ -1640,7 +1640,7 @@ jchat_bar_t::text_jChatToEQChat(
 }
 
 // jchat.logにエラーログを書き込み、jchat.dllを停止する。
-// Detourが解除されるので、EQチャットは元に戻る。
+// Detourが解除されるので、EQチャットはフック前の状態に戻る。
 void context_t::fail(
 	const error_t &err // 失敗の原因となったエラー。
 ) {

@@ -223,7 +223,7 @@ ini_getKeyValue(
 			section_name.c_str(), 
 			key_name.c_str(),
 			def_value.c_str(),
-			value.data(), 
+			LPTSTR(value.data()), 
 			DWORD(value.size()), 
 			ini_path.c_str()
 		);
@@ -250,7 +250,7 @@ ini_loadSection(
 	for (;;) {
 		len = api::GetPrivateProfileSection(
 			section_name.c_str(), 
-			section.data(), 
+			LPTSTR(section.data()), 
 			DWORD(section.size()), 
 			ini_path.c_str()
 		);
