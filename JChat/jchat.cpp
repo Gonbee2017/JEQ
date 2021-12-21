@@ -804,19 +804,19 @@ jchat_bar_t::onDestroy(
 	try {
 		RECT rect = window_getRect(hwnd);
 		ini_setKeyValue(
-			context.ini_path,
+			context.ini_path.string(),
 			"Window",
 			"Left",
 			stringize(data->mw_client_pos.x)
 		);
 		ini_setKeyValue(
-			context.ini_path,
+			context.ini_path.string(),
 			"Window",
 			"Top",
 			stringize(data->mw_client_pos.y)
 		);
 		ini_setKeyValue(
-			context.ini_path,
+			context.ini_path.string(),
 			"Window",
 			"Width",
 			stringize(rect.right - rect.left)
@@ -1313,7 +1313,7 @@ void jchat_bar_t::loadRegistry() {
 	// 0から始まる連番付きのキーから順番に読み込む。
 	for (int i = 0;; ++i) {
 		std::string line = ini_getKeyValue(
-			context.ini_path, 
+			context.ini_path.string(), 
 			"Registry", 
 			string_printf("Line_%d", i)
 		);
@@ -1494,12 +1494,12 @@ void jchat_bar_t::prepare(
 // ここで#には0から始まる連番を埋め込む。
 void jchat_bar_t::storeRegistry() {
 	// まず古いRegistryセクションを削除する。
-	ini_deleteSection(context.ini_path, "Registry");
+	ini_deleteSection(context.ini_path.string(), "Registry");
 	// 0から始まる連番付きのキーに順番に書き込む。
 	data->registry.moveBegin();
 	for (std::size_t i = 0; !data->registry.isEnd(); ++i)
 		ini_setKeyValue(
-			context.ini_path, 
+			context.ini_path.string(), 
 			"Registry", 
 			string_printf("Line_%d", i), 
 			*data->registry.iter++
@@ -1700,45 +1700,45 @@ void context_t::startup(
 	log = std_::make_ofstream(log_path.string(), std::ios_base::app);
 	// チャットに関するセクションを読み込む。
 	ini.chat.command_symbols = ini_getKeyValue(
-		ini_path, 
+		ini_path.string(), 
 		"Chat", 
 		"CommandSymbols", 
 		INI_CHAT_COMMAND_SYMBOLS_DEF
 	);
 	ini.chat.font_name = ini_getKeyValue(
-		ini_path, 
+		ini_path.string(), 
 		"Chat", 
 		"FontName", 
 		INI_CHAT_FONT_NAME_DEF
 	);
 	ini.chat.link_body_size = destringize<std::size_t>(
 		ini_getKeyValue(
-		ini_path, 
+		ini_path.string(), 
 		"Chat", 
 		"LinkBodySize", 
 		stringize(INI_CHAT_LINK_BODY_SIZE_DEF)
 	), INI_CHAT_LINK_BODY_SIZE_DEF);
 	// ウインドウに関するセクションを読み込む。
 	ini.window.left = destringize<int>(ini_getKeyValue(
-		ini_path, 
+		ini_path.string(), 
 		"Window", 
 		"Left", 
 		stringize(INI_WINDOW_LEFT_DEF)
 	), INI_WINDOW_LEFT_DEF);
 	ini.window.min_width = destringize<std::size_t>(ini_getKeyValue(
-		ini_path, 
+		ini_path.string(), 
 		"Window", 
 		"MinWidth", 
 		stringize(INI_WINDOW_MIN_WIDTH_DEF)
 	), INI_WINDOW_MIN_WIDTH_DEF);
 	ini.window.top = destringize<int>(ini_getKeyValue(
-		ini_path, 
+		ini_path.string(), 
 		"Window", 
 		"Top", 
 		stringize(INI_WINDOW_TOP_DEF)
 	), INI_WINDOW_TOP_DEF);
 	ini.window.width = destringize<std::size_t>(ini_getKeyValue(
-		ini_path, 
+		ini_path.string(), 
 		"Window", 
 		"Width", 
 		stringize(INI_WINDOW_WIDTH_DEF)
@@ -1825,7 +1825,7 @@ getOffset(
 	const std::string &name // オフセットの名前。
 ) {
 	DWORD offset = destringize<DWORD>(ini_getKeyValue(
-		context.ini_path, 
+		context.ini_path.string(), 
 		"Offset", 
 		name,
 		"0"

@@ -9,7 +9,6 @@
 #include <cstdlib>
 #include <ctime>
 #include <cwchar>
-#include <filesystem>
 #include <iomanip>
 #include <map>
 #include <mutex>
@@ -515,8 +514,7 @@ TEST_METHOD(test_module_getPath) {
 			std::strcpy(pFilename, help.getSeqStr().c_str());
 			return std::strlen(pFilename);
 		};
-		std::filesystem::path mod_path = module_getPath(help.getSeq<HMODULE>());
-		Assert::AreEqual(std::string("2"), mod_path.string());
+		Assert::AreEqual(std::string("2"), module_getPath(help.getSeq<HMODULE>()));
 		Assert::AreEqual(std::string("GetModuleFileName"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());

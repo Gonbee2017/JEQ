@@ -12,9 +12,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
-#if _MSVC_LANG >= 201703L
-#include <filesystem>
-#endif
 #include <initializer_list>
 #include <locale>
 #include <mutex>
@@ -183,43 +180,41 @@ cursor_isOverWindow(
 		cursor_pos.y < rect.bottom;
 }
 
-#if _MSVC_LANG >= 201703L
-
 // 設定ファイルからキーを削除する。
 void ini_deleteKey(
-	const std::filesystem::path &ini_path, // 設定ファイルのパス。
-	const std::string &section_name,       // セクションの名前。
-	const std::string &key_name            // 削除するキーの名前。
+	const std::string &ini_path,     // 設定ファイルのパス。
+	const std::string &section_name, // セクションの名前。
+	const std::string &key_name      // 削除するキーの名前。
 ) {
 	api::WritePrivateProfileString(
 		section_name.c_str(), 
 		key_name.c_str(), 
 		NULL,
-		ini_path.string().c_str()
+		ini_path.c_str()
 	);
 }
 
 // 設定ファイルからセクションを削除する。
 void ini_deleteSection(
-	const std::filesystem::path &ini_path, // 設定ファイルのパス。
-	const std::string &section_name        // 削除するセクションの名前。
+	const std::string &ini_path,    // 設定ファイルのパス。
+	const std::string &section_name // 削除するセクションの名前。
 ) {
 	api::WritePrivateProfileString(
 		section_name.c_str(), 
 		NULL,
 		NULL,
-		ini_path.string().c_str()
+		ini_path.c_str()
 	);
 }
 
 // 設定ファイルからキーの値を読み込む。
 std::string // 読み込んだキーの値。
 ini_getKeyValue(
-	const std::filesystem::path &ini_path, // 設定ファイルのパス。
-	const std::string &section_name,       // セクションの名前。
-	const std::string &key_name,           // キーの名前。
-	const std::string &def_value           // キーがなかったときの既定値。
-	                                       // 省略すると空文字列。
+	const std::string &ini_path,     // 設定ファイルのパス。
+	const std::string &section_name, // セクションの名前。
+	const std::string &key_name,     // キーの名前。
+	const std::string &def_value     // キーがなかったときの既定値。
+	                                 // 省略すると空文字列。
 ) {
 	std::string value(1024, '\0');
 	DWORD len;
@@ -230,7 +225,7 @@ ini_getKeyValue(
 			def_value.c_str(),
 			value.data(), 
 			DWORD(value.size()), 
-			ini_path.string().c_str()
+			ini_path.c_str()
 		);
 		if (len != value.size() - 1) break;
 		value.resize(value.size() * 2);
@@ -247,8 +242,8 @@ ini_getKeyValue(
 // またキーは'='で名前と値が区切られている。
 std::string // 読み込んだセクション。
 ini_loadSection(
-	const std::filesystem::path &ini_path, // 設定ファイルのパス。
-	const std::string &section_name        // 読み込むセクションの名前。
+	const std::string &ini_path,    // 設定ファイルのパス。
+	const std::string &section_name // 読み込むセクションの名前。
 ) {
 	std::string section(1024, '\0');
 	DWORD len;
@@ -257,7 +252,7 @@ ini_loadSection(
 			section_name.c_str(), 
 			section.data(), 
 			DWORD(section.size()), 
-			ini_path.string().c_str()
+			ini_path.c_str()
 		);
 		if (len != section.size() - 2) break;
 		section.resize(section.size() * 2);
@@ -269,30 +264,28 @@ ini_loadSection(
 
 // 設定ファイルにキーの値を書き込む。
 void ini_setKeyValue(
-	const std::filesystem::path &ini_path, // 設定ファイルのパス。
-	const std::string &section_name,       // セクションの名前。
-	const std::string &key_name,           // キーの名前。
-	const std::string key_value            // 書き込むキーの値。
+	const std::string &ini_path,     // 設定ファイルのパス。
+	const std::string &section_name, // セクションの名前。
+	const std::string &key_name,     // キーの名前。
+	const std::string key_value      // 書き込むキーの値。
 ) {
 	api::WritePrivateProfileString(
 		section_name.c_str(), 
 		key_name.c_str(), 
 		key_value.c_str(), 
-		ini_path.string().c_str()
+		ini_path.c_str()
 	);
 }
 
 // モジュールのパスを取得する。
-std::filesystem::path // 取得したパス。
+std::string // 取得したパス。
 module_getPath(
 	HMODULE hmod // モジュールのハンドル。
 ) {
 	char buff[MAX_PATH] = {};
 	api::GetModuleFileName(hmod, buff, MAX_PATH);
-	return std::filesystem::path(buff);
+	return buff;
 }
-
-#endif
 
 // 位置をクライアント座標系からスクリーン座標系に変換する。
 POINT // 変換した位置。

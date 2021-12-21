@@ -110,7 +110,7 @@ fuga.dll=0 ; fuga.dllをロードしない。
 */
 void loadPlugins() {
 	// Pluginセクションにあるすべてのキーを取得する。
-	auto plugin_keys = ini_getKeys(context.ini_path, "Plugin");
+	auto plugin_keys = ini_getKeys(context.ini_path.string(), "Plugin");
 	// 各キーを巡回する。
 	for (const named_value_t &plugin_key : plugin_keys) {
 		// キーの値で示されているロードフラグが真なら、

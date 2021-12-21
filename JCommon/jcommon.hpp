@@ -19,9 +19,6 @@
 
 #include <condition_variable>
 #include <cstddef>
-#if _MSVC_LANG >= 201703L
-#include <filesystem>
-#endif
 #include <functional>
 #include <ios>
 #include <istream>
@@ -277,11 +274,11 @@ template <class PostX, class PreX>
 PostX indirect_cast(PreX x);
 
 #if _MSVC_LANG >= 201703L
-
 template <template <class> class Container = std::vector>
-Container<named_value_t> ini_getKeys(const std::filesystem::path &ini_path, const std::string &section_name);
-
+#else
+template <template <class> class Container>
 #endif
+Container<named_value_t> ini_getKeys(const std::string &ini_path, const std::string &section_name);
 
 #if _MSVC_LANG >= 201703L
 template <template <class> class Container = std::vector>
@@ -337,18 +334,12 @@ void _stringizeTo(std::ostream &out, const X &x, Lead &&lead, Trails &&...trails
 
 POINT cursor_getPos();
 bool cursor_isOverWindow(HWND hwnd);
-
-#if _MSVC_LANG >= 201703L
-
-void ini_deleteKey(const std::filesystem::path &ini_path, const std::string &section_name, const std::string &key_name);
-void ini_deleteSection(const std::filesystem::path &ini_path, const std::string &section_name);
-std::string ini_getKeyValue(const std::filesystem::path &ini_path, const std::string &section_name, const std::string &key_name, const std::string &def_value = std::string());
-std::string ini_loadSection(const std::filesystem::path &ini_path, const std::string &section_name);
-void ini_setKeyValue(const std::filesystem::path &ini_path, const std::string &section_name, const std::string &key_name, const std::string key_value);
-std::filesystem::path module_getPath(HMODULE hmod);
-
-#endif
-
+void ini_deleteKey(const std::string &ini_path, const std::string &section_name, const std::string &key_name);
+void ini_deleteSection(const std::string &ini_path, const std::string &section_name);
+std::string ini_getKeyValue(const std::string &ini_path, const std::string &section_name, const std::string &key_name, const std::string &def_value = std::string());
+std::string ini_loadSection(const std::string &ini_path, const std::string &section_name);
+void ini_setKeyValue(const std::string &ini_path, const std::string &section_name, const std::string &key_name, const std::string key_value);
+std::string module_getPath(HMODULE hmod);
 POINT point_clientToScreen(POINT pos, HWND hwnd);
 POINT point_screenToClient(POINT pos, HWND hwnd);
 void putLog(std::ostream *log, const std::string &mes);
@@ -586,20 +577,16 @@ indirect_cast(
 	return *(PostX*)(&x);
 }
 
-#if _MSVC_LANG >= 201703L
-
 // 設定ファイルのセクションにあるすべてのキーを取得する。
 template <
 	template <class> class Container // キーのコンテナの型。
 > Container<named_value_t> // 取得したキーのコンテナ。
 ini_getKeys(
-	const std::filesystem::path &ini_path, // 設定ファイルのパス。
-	const std::string &section_name        // セクションの名前。
+	const std::string &ini_path,    // 設定ファイルのパス。
+	const std::string &section_name // セクションの名前。
 ) {
 	return ini_parseSection<Container>(ini_loadSection(ini_path, section_name));
 }
-
-#endif
 
 // 設定ファイルのセクションを解析する。
 // GetPrivateProfileSectionで読み込んだセクションは
