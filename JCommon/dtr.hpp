@@ -93,7 +93,7 @@
 
 #include <string>
 
-namespace jeq::dtr {
+namespace jeq { namespace dtr {
 
 //// Œ^‚Ì’è‹`
 
@@ -118,6 +118,6 @@ DECL_IMP(DetourTransactionAbort, LONG);
 DECL_IMP_WRAP(DetourTransactionBegin, LONG);
 DECL_IMP_WRAP(DetourTransactionCommit, LONG);
 
-}
+}}
 
 #endif // #ifndef JEQ_API_HPP

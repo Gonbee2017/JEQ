@@ -9,14 +9,16 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdlib>
+#if _MSVC_LANG >= 201703L
 #include <filesystem>
+#endif
 #include <fstream>
 #include <ios>
 #include <memory>
 #include <thread>
 #include <utility>
 
-namespace jeq::std_ {
+namespace jeq { namespace std_ {
 
 //// クラスメンバの定義
 
@@ -85,6 +87,8 @@ DEF_IMP_WRAP(
 	condition_variable_wait_true(cv, lock, pred);
 }
 
+#if _MSVC_LANG >= 201703L
+
 DEF_IMP_DEF(filesystem_equivalent) = [](
 	const std::filesystem::path &p1, 
 	const std::filesystem::path &p2
@@ -108,6 +112,8 @@ DEF_IMP_WRAP(
 DEF_IMP(filesystem_exists) = [](const std::filesystem::path &p) -> bool {
 	return std::filesystem::exists(p);
 };
+
+#endif
 
 DEF_IMP_WRAP_EASY(
 	getenv,
@@ -234,4 +240,4 @@ DEF_IMP_WRAP(
 	unique_lock_unlock_true(lock);
 }
 
-}
+}}

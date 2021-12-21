@@ -3,7 +3,7 @@
 // 複数のEXEやDLLで共通する処理をこのライブラリにまとめて配置する。
 // ただし今のところ共通していなくても、いつかしそうな汎用的な処理、
 // 例えば文字エンコーディング変換のような処理もここに配置する。
-// またプラットフォームはx86とx64の両方に対応する。
+// またC++は14と17の両方、プラットフォームはx86とx64の両方に対応する。
 
 #ifndef JEQ_JCOMMON_HPP
 #define JEQ_JCOMMON_HPP
@@ -19,7 +19,9 @@
 
 #include <condition_variable>
 #include <cstddef>
+#if _MSVC_LANG >= 201703L
 #include <filesystem>
+#endif
 #include <functional>
 #include <ios>
 #include <istream>
@@ -232,10 +234,10 @@ public:
 		void onTaskDone();
 	};
 
-	explicit thread_pool_t(std::size_t workers_count = HARDWARE_CONCURRENCY);
 	template <class Container>
 	work_t ask(const Container &tasks);
 	work_t ask(const task_t &task);
+	void launch(std::size_t workers_count = HARDWARE_CONCURRENCY);
 protected:
 	// ロックの型。
 	using lock_t = std::unique_lock<std::mutex>;
@@ -271,16 +273,33 @@ X destringize(const std::string &str, X def, Manip &&manip);
 inline BYTE getCtrlAlphabetKey(char alphabet);
 template <class PostX, class PreX>
 PostX indirect_cast(PreX x);
+
+#if _MSVC_LANG >= 201703L
+
 template <template <class> class Container = std::vector>
 Container<named_value_t> ini_getKeys(const std::filesystem::path &ini_path, const std::string &section_name);
+
+#endif
+
+#if _MSVC_LANG >= 201703L
 template <template <class> class Container = std::vector>
+#else
+template <template <class> class Container>
+#endif
 Container<named_value_t> ini_parseSection(const std::string &section);
+
 template <class Map>
 typename Map::mapped_type map_find(const Map &map, const typename Map::key_type &key, const typename Map::mapped_type &def_mapped = typename Map::mapped_type());
 template <class NamedValues>
 std::map<std::string,std::string,ignore_case_compare_t> namedValuesToMap(const NamedValues &named_values);
+
+#if _MSVC_LANG >= 201703L
 template <template <class> class Container = std::vector>
+#else
+template <template <class> class Container>
+#endif
 Container<named_value_t> parseArguments(const std::string &args);
+
 template <class Container>
 void reverseClear(Container &container);
 template <class Number>
@@ -291,7 +310,12 @@ template <class X, class Manip>
 std::string stringize(const X &x, Manip &&manip);
 template <class X, class Lead, class ...Trails>
 std::string stringize(const X &x, Lead &&lead, Trails &&...trails);
+
+#if _MSVC_LANG >= 201703L
 template <template <class> class Container = std::vector>
+#else
+template <template <class> class Container>
+#endif
 Container<std::string> string_split(const std::string &str,	char delim,	bool allow_empty = true);
 
 //// 非公開なテンプレート関数とインライン関数の宣言
@@ -311,12 +335,18 @@ void _stringizeTo(std::ostream &out, const X &x, Lead &&lead, Trails &&...trails
 
 POINT cursor_getPos();
 bool cursor_isOverWindow(HWND hwnd);
+
+#if _MSVC_LANG >= 201703L
+
 void ini_deleteKey(const std::filesystem::path &ini_path, const std::string &section_name, const std::string &key_name);
 void ini_deleteSection(const std::filesystem::path &ini_path, const std::string &section_name);
 std::string ini_getKeyValue(const std::filesystem::path &ini_path, const std::string &section_name, const std::string &key_name, const std::string &def_value = std::string());
 std::string ini_loadSection(const std::filesystem::path &ini_path, const std::string &section_name);
 void ini_setKeyValue(const std::filesystem::path &ini_path, const std::string &section_name, const std::string &key_name, const std::string key_value);
 std::filesystem::path module_getPath(HMODULE hmod);
+
+#endif
+
 POINT point_clientToScreen(POINT pos, HWND hwnd);
 POINT point_screenToClient(POINT pos, HWND hwnd);
 void putLog(std::ostream *log, const std::string &mes);
@@ -554,6 +584,8 @@ indirect_cast(
 	return *(PostX*)(&x);
 }
 
+#if _MSVC_LANG >= 201703L
+
 // 設定ファイルのセクションにあるすべてのキーを取得する。
 template <
 	template <class> class Container // キーのコンテナの型。
@@ -564,6 +596,8 @@ ini_getKeys(
 ) {
 	return ini_parseSection<Container>(ini_loadSection(ini_path, section_name));
 }
+
+#endif
 
 // 設定ファイルのセクションを解析する。
 // GetPrivateProfileSectionで読み込んだセクションは

@@ -12,7 +12,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
+#if _MSVC_LANG >= 201703L
 #include <filesystem>
+#endif
 #include <initializer_list>
 #include <locale>
 #include <mutex>
@@ -54,7 +56,9 @@ test_helper_t::getSeqStr(
 ) {
 	int seq = getSeq(offset);
 	// 再配置されないようにnewした文字列を保存しておく。
-	return *data->seq_str_buff.emplace_back(new std::string(stringize(seq)));
+	auto str = new std::string(stringize(seq));
+	data->seq_str_buff.emplace_back(str);
+	return *str;
 }
 
 // テストヘルパーの現在の連番をベースとして設定する。
@@ -96,8 +100,16 @@ void thread_pool_t::work_t::onTaskDone() {
 	std_::condition_variable_notify_all(&data->work_cv);
 }
 
-// スレッドプールを構築する。
-thread_pool_t::thread_pool_t(
+// スレッドプールにタスクの非同期実行を依頼する。
+thread_pool_t::work_t // 作成したワーク。
+thread_pool_t::ask(
+	const task_t &task // 非同期実行するタスク。
+) {
+	return ask(std::initializer_list<task_t>{task});
+}
+
+// ワーカースレッドを起動する。
+void thread_pool_t::launch(
 	std::size_t workers_count // ワーカースレッドの数。省略ならCPUコアの数。
 ) {
 	// 指定された数のワーカースレッドを作成する。
@@ -107,18 +119,11 @@ thread_pool_t::thread_pool_t(
 		}));
 }
 
-// スレッドプールにタスクの非同期実行を依頼する。
-thread_pool_t::work_t // 作成したワーク。
-thread_pool_t::ask(
-	const task_t &task // 非同期実行するタスク。
-) {
-	return ask(std::initializer_list<task_t>{task});
-}
-
 // スレッドプールのインスタンスデータを破棄する。
 // 待機中のワーカーはすぐに離脱させ、実行中のワーカーは完了次第
 // 離脱させる。すべてのワーカースレッドが離脱したら制御を戻す。
 thread_pool_t::data_t::~data_t() {
+	if (workers.empty()) return;
 	auto lock = std_::make_unique_lock(&mutex);
 	leave = true;
 	std_::unique_lock_unlock(lock.get());
@@ -177,6 +182,8 @@ cursor_isOverWindow(
 		cursor_pos.y >= rect.top && 
 		cursor_pos.y < rect.bottom;
 }
+
+#if _MSVC_LANG >= 201703L
 
 // 設定ファイルからキーを削除する。
 void ini_deleteKey(
@@ -284,6 +291,8 @@ module_getPath(
 	api::GetModuleFileName(hmod, buff, MAX_PATH);
 	return std::filesystem::path(buff);
 }
+
+#endif
 
 // 位置をクライアント座標系からスクリーン座標系に変換する。
 POINT // 変換した位置。
@@ -399,7 +408,7 @@ string_sjisToUtf16(
 		0, 
 		src.data(), 
 		-1, 
-		dest.data(), 
+		LPWSTR(dest.data()), 
 		int(dest.size())
 	)) return std::wstring();
 	// 終端の'\0'を切り捨てる。
@@ -453,7 +462,7 @@ window_getText(
 	for (;;) {
 		len = api::GetWindowText(
 			hwnd, 
-			text.data(), 
+			LPSTR(text.data()), 
 			int(text.size())
 		);
 		if (len != int(text.size()) - 1) break;
@@ -496,7 +505,7 @@ wstring_utf16ToUtf8(
 		0, 
 		src.data(), 
 		-1, 
-		dest.data(), 
+		LPSTR(dest.data()), 
 		int(dest.size()), 
 		nullptr, 
 		nullptr

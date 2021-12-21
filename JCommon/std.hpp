@@ -13,7 +13,9 @@
 
 #include <chrono>
 #include <condition_variable>
+#if _MSVC_LANG >= 201703L
 #include <filesystem>
+#endif
 #include <functional>
 #include <ios>
 #include <memory>
@@ -22,7 +24,7 @@
 #include <string>
 #include <thread>
 
-namespace jeq::std_ {
+namespace jeq { namespace std_ {
 
 //// Œ^‚Ì’è‹`
 
@@ -45,8 +47,12 @@ protected:
 DECL_IMP(chrono_system_clock_now, std::chrono::system_clock::time_point);
 DECL_IMP_WRAP(condition_variable_notify_all, void, std::condition_variable *cv);
 DECL_IMP_WRAP(condition_variable_wait, void, std::condition_variable *cv, std::unique_lock<std::mutex> *lock, const std::function<bool()> &pred);
+
+#if _MSVC_LANG >= 201703L
 DECL_IMP_WRAP(filesystem_equivalent, bool, const std::filesystem::path &p1, const std::filesystem::path &p2);
 DECL_IMP(filesystem_exists, bool, const std::filesystem::path &p);
+#endif
+
 DECL_IMP_WRAP(getenv, char*, const char *name);
 DECL_IMP(geterrno, int);
 DECL_IMP_WRAP(make_ofstream, std::shared_ptr<std::ostream>, const std::string &s, std::ios_base::openmode mode);
@@ -57,6 +63,6 @@ DECL_IMP_WRAP(ostream_putLine, void, std::ostream *out, const std::string &line)
 DECL_IMP_WRAP(thread_join, void, std::thread *thread);
 DECL_IMP_WRAP(unique_lock_unlock, void, std::unique_lock<std::mutex> *lock);
 
-}
+}}
 
 #endif // #ifndef JEQ_STD_HPP

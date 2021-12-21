@@ -16,7 +16,7 @@
 
 #include <string>
 
-namespace jeq::api {
+namespace jeq { namespace api {
 
 //// Œ^‚Ì’è‹`
 
@@ -98,6 +98,6 @@ DECL_IMP(TranslateMessage, BOOL, const MSG *lpMsg);
 DECL_IMP(UnregisterClass, BOOL, LPCSTR lpClassName, HINSTANCE hInstance);
 DECL_IMP_WRAP(WritePrivateProfileString, BOOL, LPCSTR lpAppName, LPCSTR lpKeyName, LPCSTR lpString, LPCSTR lpFileName);
 
-}
+}}
 
 #endif // #ifndef JEQ_API_HPP

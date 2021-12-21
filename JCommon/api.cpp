@@ -7,7 +7,7 @@
 
 #include <windows.h>
 
-namespace jeq::api {
+namespace jeq { namespace api {
 
 //// クラスメンバ関数の定義
 
@@ -554,4 +554,4 @@ DEF_IMP_WRAP_EASY(
 	return ret;
 }
 
-}
+}}

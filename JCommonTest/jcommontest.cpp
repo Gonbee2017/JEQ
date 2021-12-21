@@ -1020,6 +1020,8 @@ TEST_METHOD(test_thread_pool_ask) {
 	BEGIN_DEF_SPY_CLASS_N(thread_pool_t, work_t);
 	{ // タスクを依頼できるか？
 		test_helper_t help;
+		thread_pool_t thread_pool_;
+		spy_thread_pool_t *thread_pool = (spy_thread_pool_t*)(&thread_pool_);
 		thread_pool_t::task_t task = [&] {
 			help << "task\n";
 		};
@@ -1042,48 +1044,32 @@ TEST_METHOD(test_thread_pool_ask) {
 			help << "unique_lock_unlock\n";
 			help << int(lock) << '\n';
 		};
-		int mutex_address;
-		int workers_cv_address;
-		int work_mutex_address;
-		int work_work_cv_address;
-		{
-			thread_pool_t thread_pool_(0);
-			spy_thread_pool_t *thread_pool = (spy_thread_pool_t*)(&thread_pool_);
-			auto work_ = thread_pool->ask(task);
-			spy_work_t *work = (spy_work_t*)(&work_);
-			Assert::AreEqual(1, int(thread_pool->data->tasks.size()));
-			Assert::AreEqual(1, int(work->data->tasks_count));
-			Assert::AreEqual(0, int(work->data->tasks_done));
-			thread_pool->data->tasks.front()();
-			Assert::AreEqual(1, int(work->data->tasks_done));
-			mutex_address = int(&thread_pool->data->mutex);
-			workers_cv_address = int(&thread_pool->data->workers_cv);
-			work_mutex_address = int(&work->data->mutex);
-			work_work_cv_address = int(&work->data->work_cv);
-		}
+		auto work_ = thread_pool->ask(task);
+		spy_work_t *work = (spy_work_t*)(&work_);
+		Assert::AreEqual(1, int(thread_pool->data->tasks.size()));
+		Assert::AreEqual(1, int(work->data->tasks_count));
+		Assert::AreEqual(0, int(work->data->tasks_done));
+		thread_pool->data->tasks.front()();
+		Assert::AreEqual(1, int(work->data->tasks_done));
 		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
-		Assert::AreEqual(stringize(mutex_address), help.getLine());
+		Assert::AreEqual(stringize(int(&thread_pool->data->mutex)), help.getLine());
 		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
-		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
+		Assert::AreEqual(stringize(int(&thread_pool->data->workers_cv)), help.getLine());
 		Assert::AreEqual(std::string("task"), help.getLine());
 		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
-		Assert::AreEqual(stringize(work_mutex_address), help.getLine());
+		Assert::AreEqual(stringize(int(&work->data->mutex)), help.getLine());
 		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
 		Assert::AreEqual(std::string("2"), help.getLine());
 		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
-		Assert::AreEqual(stringize(work_work_cv_address), help.getLine());
-		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
-		Assert::AreEqual(stringize(mutex_address), help.getLine());
-		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
-		Assert::AreEqual(std::string("3"), help.getLine());
-		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
-		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
+		Assert::AreEqual(stringize(int(&work->data->work_cv)), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	{ // タスクのコンテナを依頼できるか？
 		test_helper_t help;
+		thread_pool_t thread_pool_;
+		spy_thread_pool_t *thread_pool = (spy_thread_pool_t*)(&thread_pool_);
 		std::vector<thread_pool_t::task_t> tasks = {[&] {
 			help << "task1\n";
 		}, [&] {
@@ -1108,57 +1094,152 @@ TEST_METHOD(test_thread_pool_ask) {
 			help << "unique_lock_unlock\n";
 			help << int(lock) << '\n';
 		};
-		int mutex_address;
-		int workers_cv_address;
-		int work_mutex_address;
-		int work_work_cv_address;
-		{
-			thread_pool_t thread_pool_(0);
-			spy_thread_pool_t *thread_pool = (spy_thread_pool_t*)(&thread_pool_);
-			auto work_ = thread_pool->ask(tasks);
-			spy_work_t *work = (spy_work_t*)(&work_);
-			Assert::AreEqual(2, int(thread_pool->data->tasks.size()));
-			Assert::AreEqual(2, int(work->data->tasks_count));
-			Assert::AreEqual(0, int(work->data->tasks_done));
-			thread_pool->data->tasks.front()();
-			Assert::AreEqual(1, int(work->data->tasks_done));
-			thread_pool->data->tasks.pop();
-			thread_pool->data->tasks.front()();
-			Assert::AreEqual(2, int(work->data->tasks_done));
-			mutex_address = int(&thread_pool->data->mutex);
-			workers_cv_address = int(&thread_pool->data->workers_cv);
-			work_mutex_address = int(&work->data->mutex);
-			work_work_cv_address = int(&work->data->work_cv);
-		}
+		auto work_ = thread_pool->ask(tasks);
+		spy_work_t *work = (spy_work_t*)(&work_);
+		Assert::AreEqual(2, int(thread_pool->data->tasks.size()));
+		Assert::AreEqual(2, int(work->data->tasks_count));
+		Assert::AreEqual(0, int(work->data->tasks_done));
+		thread_pool->data->tasks.front()();
+		Assert::AreEqual(1, int(work->data->tasks_done));
+		thread_pool->data->tasks.pop();
+		thread_pool->data->tasks.front()();
+		Assert::AreEqual(2, int(work->data->tasks_done));
 		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
-		Assert::AreEqual(stringize(mutex_address), help.getLine());
+		Assert::AreEqual(stringize(int(&thread_pool->data->mutex)), help.getLine());
 		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
-		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
+		Assert::AreEqual(stringize(int(&thread_pool->data->workers_cv)), help.getLine());
 		Assert::AreEqual(std::string("task1"), help.getLine());
 		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
-		Assert::AreEqual(stringize(work_mutex_address), help.getLine());
+		Assert::AreEqual(stringize(int(&work->data->mutex)), help.getLine());
 		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
 		Assert::AreEqual(std::string("2"), help.getLine());
 		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
-		Assert::AreEqual(stringize(work_work_cv_address), help.getLine());
+		Assert::AreEqual(stringize(int(&work->data->work_cv)), help.getLine());
 		Assert::AreEqual(std::string("task2"), help.getLine());
 		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
-		Assert::AreEqual(stringize(work_mutex_address), help.getLine());
+		Assert::AreEqual(stringize(int(&work->data->mutex)), help.getLine());
 		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
 		Assert::AreEqual(std::string("3"), help.getLine());
 		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
-		Assert::AreEqual(stringize(work_work_cv_address), help.getLine());
-		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
-		Assert::AreEqual(stringize(mutex_address), help.getLine());
-		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
-		Assert::AreEqual(std::string("4"), help.getLine());
-		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
-		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
+		Assert::AreEqual(stringize(int(&work->data->work_cv)), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	END_DEF_SPY_CLASS(work_t);
+	END_DEF_SPY_CLASS(thread_pool_t);
+}
+
+TEST_METHOD(test_thread_pool_launch) {
+	BEGIN_DEF_SPY_CLASS(thread_pool_t);
+	{ // ワーカースレッドの数を省略したときに正しく動作できるか？
+		test_helper_t help;
+		thread_pool_t thread_pool_;
+		spy_thread_pool_t *thread_pool = (spy_thread_pool_t*)(&thread_pool_);
+		std_::condition_variable_notify_all_true = [&](
+			std::condition_variable *cv
+		) {
+			help << "condition_variable_notify_all\n";
+			help << int(cv) << '\n';
+		};
+		std_::make_thread_true = [&](
+			const std::function<void()> &proc
+		) -> std::shared_ptr<std::thread> {
+			help << "make_thread\n";
+			return help.getSeqPtr<std::thread>();
+		};
+		std_::make_unique_lock_true = [&](
+			std::mutex *mutex
+		) -> std::shared_ptr<std::unique_lock<std::mutex>> {
+			help << "make_unique_lock\n";
+			help << int(mutex) << '\n';
+			return help.getSeqPtr<std::unique_lock<std::mutex>>();
+		};
+		std_::thread_join_true = [&](std::thread *thread) {
+			help << "thread_join\n";
+			help << int(thread) << '\n';
+		};
+		std_::unique_lock_unlock_true = [&](
+			std::unique_lock<std::mutex> *lock
+		) {
+			help << "unique_lock_unlock\n";
+			help << int(lock) << '\n';
+		};
+		thread_pool->launch();
+		Assert::AreEqual(HARDWARE_CONCURRENCY, thread_pool->data->workers.size());
+		for (std::size_t i = 0; i < HARDWARE_CONCURRENCY; ++i)
+			Assert::AreEqual(int(i + 1), int(thread_pool->data->workers[i].get()));
+		int mutex_address = int(&thread_pool->data->mutex);
+		int workers_cv_address = int(&thread_pool->data->workers_cv);
+		*thread_pool = {};
+		for (std::size_t i = 0; i < HARDWARE_CONCURRENCY; ++i)
+			Assert::AreEqual(std::string("make_thread"), help.getLine());
+		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
+		Assert::AreEqual(stringize(mutex_address), help.getLine());
+		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
+		Assert::AreEqual(std::string("7"), help.getLine());
+		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
+		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
+		for (std::size_t i = 0; i < HARDWARE_CONCURRENCY; ++i) {
+			Assert::AreEqual(std::string("thread_join"), help.getLine());
+			Assert::AreEqual(stringize(i + 1), help.getLine());
+		}
+		Assert::AreEqual(std::string(), help.getLine());
+	}
+	{ // ワーカースレッドの数を指定したときに正しく動作できるか？
+		test_helper_t help;
+		thread_pool_t thread_pool_;
+		spy_thread_pool_t *thread_pool = (spy_thread_pool_t*)(&thread_pool_);
+		std_::condition_variable_notify_all_true = [&](
+			std::condition_variable *cv
+		) {
+			help << "condition_variable_notify_all\n";
+			help << int(cv) << '\n';
+		};
+		std_::make_thread_true = [&](
+			const std::function<void()> &proc
+		) -> std::shared_ptr<std::thread> {
+			help << "make_thread\n";
+			return help.getSeqPtr<std::thread>();
+		};
+		std_::make_unique_lock_true = [&](
+			std::mutex *mutex
+		) -> std::shared_ptr<std::unique_lock<std::mutex>> {
+			help << "make_unique_lock\n";
+			help << int(mutex) << '\n';
+			return help.getSeqPtr<std::unique_lock<std::mutex>>();
+		};
+		std_::thread_join_true = [&](std::thread *thread) {
+			help << "thread_join\n";
+			help << int(thread) << '\n';
+		};
+		std_::unique_lock_unlock_true = [&](
+			std::unique_lock<std::mutex> *lock
+		) {
+			help << "unique_lock_unlock\n";
+			help << int(lock) << '\n';
+		};
+		thread_pool->launch(10);
+		Assert::AreEqual(10, int(thread_pool->data->workers.size()));
+		for (std::size_t i = 0; i < 10; ++i)
+			Assert::AreEqual(int(i + 1), int(thread_pool->data->workers[i].get()));
+		int mutex_address = int(&thread_pool->data->mutex);
+		int workers_cv_address = int(&thread_pool->data->workers_cv);
+		*thread_pool = {};
+		for (std::size_t i = 0; i < 10; ++i)
+			Assert::AreEqual(std::string("make_thread"), help.getLine());
+		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
+		Assert::AreEqual(stringize(mutex_address), help.getLine());
+		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
+		Assert::AreEqual(std::string("11"), help.getLine());
+		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
+		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
+		for (std::size_t i = 0; i < 10; ++i) {
+			Assert::AreEqual(std::string("thread_join"), help.getLine());
+			Assert::AreEqual(stringize(i + 1), help.getLine());
+		}
+		Assert::AreEqual(std::string(), help.getLine());
+	}
 	END_DEF_SPY_CLASS(thread_pool_t);
 }
 
@@ -1183,6 +1264,7 @@ TEST_METHOD(test_thread_pool_multithread) {
 			});
 			result = 1 + 2;
 		};
+		thread_pool.launch();
 		auto work = thread_pool.ask(task);
 		Assert::IsFalse(work.isDone());
 		go = true;
@@ -1244,6 +1326,7 @@ TEST_METHOD(test_thread_pool_multithread) {
 			index = 0;
 			std_::condition_variable_notify_all(&cv);
 		});
+		thread_pool.launch();
 		auto work = thread_pool.ask(tasks);
 		Assert::IsFalse(work.isDone());
 		index = 2;
@@ -1254,9 +1337,10 @@ TEST_METHOD(test_thread_pool_multithread) {
 	}
 	{ // 10×10個のタスクを非同期実行できるか？
 		static const int N = 10;
-		thread_pool_t thread_pool(10);
+		thread_pool_t thread_pool;
 		int result[N][N];
 		thread_pool_t::work_t works[N];
+		thread_pool.launch(10);
 		for (int i = 0; i < N; ++i) {
 			std::vector<thread_pool_t::task_t> tasks;
 			for (int j = 0; j < N; ++j)
@@ -1272,123 +1356,6 @@ TEST_METHOD(test_thread_pool_multithread) {
 				Assert::AreEqual(N * i + j, result[i][j]);
 		}
 	}
-}
-
-TEST_METHOD(test_thread_pool_new) {
-	BEGIN_DEF_SPY_CLASS(thread_pool_t);
-	{ // ワーカースレッドの数を省略したときに正しく動作できるか？
-		test_helper_t help;
-		std_::condition_variable_notify_all_true = [&](
-			std::condition_variable *cv
-		) {
-			help << "condition_variable_notify_all\n";
-			help << int(cv) << '\n';
-		};
-		std_::make_thread_true = [&](
-			const std::function<void()> &proc
-		) -> std::shared_ptr<std::thread> {
-			help << "make_thread\n";
-			return help.getSeqPtr<std::thread>();
-		};
-		std_::make_unique_lock_true = [&](
-			std::mutex *mutex
-		) -> std::shared_ptr<std::unique_lock<std::mutex>> {
-			help << "make_unique_lock\n";
-			help << int(mutex) << '\n';
-			return help.getSeqPtr<std::unique_lock<std::mutex>>();
-		};
-		std_::thread_join_true = [&](std::thread *thread) {
-			help << "thread_join\n";
-			help << int(thread) << '\n';
-		};
-		std_::unique_lock_unlock_true = [&](
-			std::unique_lock<std::mutex> *lock
-		) {
-			help << "unique_lock_unlock\n";
-			help << int(lock) << '\n';
-		};
-		int mutex_address;
-		int workers_cv_address;
-		{
-			thread_pool_t thread_pool_;
-			spy_thread_pool_t *thread_pool = (spy_thread_pool_t*)(&thread_pool_);
-			Assert::AreEqual(HARDWARE_CONCURRENCY, thread_pool->data->workers.size());
-			for (std::size_t i = 0; i < HARDWARE_CONCURRENCY; ++i)
-				Assert::AreEqual(int(i + 1), int(thread_pool->data->workers[i].get()));
-			for (std::size_t i = 0; i < HARDWARE_CONCURRENCY; ++i)
-				Assert::AreEqual(std::string("make_thread"), help.getLine());
-			mutex_address = int(&thread_pool->data->mutex);
-			workers_cv_address = int(&thread_pool->data->workers_cv);
-		}
-		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
-		Assert::AreEqual(stringize(mutex_address), help.getLine());
-		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
-		Assert::AreEqual(std::string("7"), help.getLine());
-		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
-		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
-		for (std::size_t i = 0; i < HARDWARE_CONCURRENCY; ++i) {
-			Assert::AreEqual(std::string("thread_join"), help.getLine());
-			Assert::AreEqual(stringize(i + 1), help.getLine());
-		}
-		Assert::AreEqual(std::string(), help.getLine());
-	}
-	{ // ワーカースレッドの数を指定したときに正しく動作できるか？
-		test_helper_t help;
-		std_::condition_variable_notify_all_true = [&](
-			std::condition_variable *cv
-		) {
-			help << "condition_variable_notify_all\n";
-			help << int(cv) << '\n';
-		};
-		std_::make_thread_true = [&](
-			const std::function<void()> &proc
-		) -> std::shared_ptr<std::thread> {
-			help << "make_thread\n";
-			return help.getSeqPtr<std::thread>();
-		};
-		std_::make_unique_lock_true = [&](
-			std::mutex *mutex
-		) -> std::shared_ptr<std::unique_lock<std::mutex>> {
-			help << "make_unique_lock\n";
-			help << int(mutex) << '\n';
-			return help.getSeqPtr<std::unique_lock<std::mutex>>();
-		};
-		std_::thread_join_true = [&](std::thread *thread) {
-			help << "thread_join\n";
-			help << int(thread) << '\n';
-		};
-		std_::unique_lock_unlock_true = [&](
-			std::unique_lock<std::mutex> *lock
-		) {
-			help << "unique_lock_unlock\n";
-			help << int(lock) << '\n';
-		};
-		int mutex_address;
-		int workers_cv_address;
-		{
-			thread_pool_t thread_pool_(10);
-			spy_thread_pool_t *thread_pool = (spy_thread_pool_t*)(&thread_pool_);
-			Assert::AreEqual(10, int(thread_pool->data->workers.size()));
-			for (std::size_t i = 0; i < 10; ++i)
-				Assert::AreEqual(int(i + 1), int(thread_pool->data->workers[i].get()));
-			for (std::size_t i = 0; i < 10; ++i)
-				Assert::AreEqual(std::string("make_thread"), help.getLine());
-			mutex_address = int(&thread_pool->data->mutex);
-			workers_cv_address = int(&thread_pool->data->workers_cv);
-		}
-		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
-		Assert::AreEqual(stringize(mutex_address), help.getLine());
-		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
-		Assert::AreEqual(std::string("11"), help.getLine());
-		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
-		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
-		for (std::size_t i = 0; i < 10; ++i) {
-			Assert::AreEqual(std::string("thread_join"), help.getLine());
-			Assert::AreEqual(stringize(i + 1), help.getLine());
-		}
-		Assert::AreEqual(std::string(), help.getLine());
-	}
-	END_DEF_SPY_CLASS(thread_pool_t);
 }
 
 TEST_METHOD(test_thread_pool_work_isDone) {
@@ -1497,7 +1464,8 @@ TEST_METHOD(test_thread_pool_worker_procedure) {
 	BEGIN_DEF_SPY_CLASS(thread_pool_t);
 	{
 		test_helper_t help;
-		spy_thread_pool_t *thread_pool;
+		thread_pool_t thread_pool_;
+		spy_thread_pool_t *thread_pool = (spy_thread_pool_t*)(&thread_pool_);
 		int index = 0;
 		thread_pool_t::task_t task = [&] {
 			help << "task\n";
@@ -1540,19 +1508,11 @@ TEST_METHOD(test_thread_pool_worker_procedure) {
 			help << "unique_lock_unlock\n";
 			help << int(lock) << '\n';
 		};
-		int mutex_address;
-		int workers_cv_address;
-		{
-			thread_pool_t thread_pool_(0);
-			thread_pool = (spy_thread_pool_t*)(&thread_pool_);
-			thread_pool->worker_procedure();
-			mutex_address = int(&thread_pool->data->mutex);
-			workers_cv_address = int(&thread_pool->data->workers_cv);
-		}
+		thread_pool->worker_procedure();
 		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
-		Assert::AreEqual(stringize(mutex_address), help.getLine());
+		Assert::AreEqual(stringize(int(&thread_pool->data->mutex)), help.getLine());
 		Assert::AreEqual(std::string("condition_variable_wait"), help.getLine());
-		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
+		Assert::AreEqual(stringize(int(&thread_pool->data->workers_cv)), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
@@ -1560,18 +1520,12 @@ TEST_METHOD(test_thread_pool_worker_procedure) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string("task"), help.getLine());
 		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
-		Assert::AreEqual(stringize(mutex_address), help.getLine());
+		Assert::AreEqual(stringize(int(&thread_pool->data->mutex)), help.getLine());
 		Assert::AreEqual(std::string("condition_variable_wait"), help.getLine());
-		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
+		Assert::AreEqual(stringize(int(&thread_pool->data->workers_cv)), help.getLine());
 		Assert::AreEqual(std::string("2"), help.getLine());
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
-		Assert::AreEqual(std::string("make_unique_lock"), help.getLine());
-		Assert::AreEqual(stringize(mutex_address), help.getLine());
-		Assert::AreEqual(std::string("unique_lock_unlock"), help.getLine());
-		Assert::AreEqual(std::string("3"), help.getLine());
-		Assert::AreEqual(std::string("condition_variable_notify_all"), help.getLine());
-		Assert::AreEqual(stringize(workers_cv_address), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	END_DEF_SPY_CLASS(thread_pool_t);

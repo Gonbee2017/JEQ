@@ -8,7 +8,7 @@
 #include <windows.h>
 #include <detours.h>
 
-namespace jeq::dtr {
+namespace jeq { namespace dtr {
 
 //// クラスメンバの定義
 
@@ -65,4 +65,4 @@ DEF_IMP_WRAP_EASY(DetourTransactionCommit, LONG) {
 	return ret;
 }
 
-}
+}}
