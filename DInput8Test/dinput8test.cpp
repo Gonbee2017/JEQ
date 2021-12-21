@@ -220,10 +220,7 @@ TEST_METHOD(test_loadPlugin) {
 		Assert::AreEqual(std::string("GetLastError"), help.getLine());
 		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
-		Assert::AreEqual(string_printf("%sをロードできませんでした。", "4"), help.getLine().substr(24));
-		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
-		Assert::AreEqual(std::string("1"), help.getLine());
-		Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::LoadLibraryA", 5), help.getLine().substr(24));
+		Assert::AreEqual(string_printf("%sをロードできませんでした。(%sが失敗しました。(%d))", "4", "jeq::api::LoadLibraryA", 5), help.getLine().substr(24));
 		Assert::AreEqual(std::string("LoadLibrary"), help.getLine());
 		Assert::AreEqual(std::string("6"), help.getLine());
 		Assert::AreEqual(std::string("FreeLibrary"), help.getLine());
@@ -345,19 +342,11 @@ TEST_METHOD(test_loadTrueDLL) {
 			help << name << '\n';
 			return help.getSeqStr().data();
 		};
-		std_::ostream_putLine_true = [&](
-			const std::ostream *out,
-			const std::string &line
-		) {
-			help << "ostream_putLine\n";
-			help << int(out) << '\n';
-			help << line << '\n';
-		};
 		try {
 			loadTrueDLL();
 			Assert::Fail();
 		} catch (const error_t &err) {
-			Assert::AreEqual(string_printf("%sが失敗しました。(%d)", "jeq::api::LoadLibraryA", 5), err.getMessage());
+			Assert::AreEqual(string_printf("%sをロードできませんでした。(%sが失敗しました。(%d))", "4\\2", "jeq::api::LoadLibraryA", 5), err.getMessage());
 		}
 		Assert::AreEqual(std::string("getenv"), help.getLine());
 		Assert::AreEqual(std::string("PATH"), help.getLine());
@@ -369,9 +358,6 @@ TEST_METHOD(test_loadTrueDLL) {
 		Assert::AreEqual(std::string("LoadLibrary"), help.getLine());
 		Assert::AreEqual(std::string("4\\2"), help.getLine());
 		Assert::AreEqual(std::string("GetLastError"), help.getLine());
-		Assert::AreEqual(std::string("ostream_putLine"), help.getLine());
-		Assert::AreEqual(std::string("3"), help.getLine());
-		Assert::AreEqual(string_printf("%sをロードできませんでした。", "4\\2"), help.getLine().substr(24));
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	{ // 正しく動作できるか？

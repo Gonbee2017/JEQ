@@ -85,10 +85,10 @@ void loadPlugin(
 		plugin_handle = api::LoadLibrary(plugin_name.c_str());
 	} catch (const error_t &err) {
 		putLog(context.log.get(), string_printf(
-			"%sをロードできませんでした。", 
-			plugin_name.c_str()
+			"%sをロードできませんでした。(%s)", 
+			plugin_name.c_str(),
+			err.getMessage().c_str()
 		));
-		putLog(context.log.get(), err.getMessage());
 		return;
 	}
 	// 成功したらハンドルと脱出処理を追加する。
@@ -135,11 +135,11 @@ void loadTrueDLL() {
 		context.true_dll_handle = 
 			api::LoadLibrary(context.true_dll_path.string().c_str());
 	} catch (const error_t &err) {
-		putLog(context.log.get(), string_printf(
-			"%sをロードできませんでした。", 
-			context.true_dll_path.string().c_str()
+		throw error_t(string_printf(
+			"%sをロードできませんでした。(%s)", 
+			context.true_dll_path.string().c_str(),
+			err.getMessage().c_str()
 		));
-		throw err;
 	}
 	context.exits.emplace_back([] {
 		api::FreeLibrary(context.true_dll_handle);
