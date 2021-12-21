@@ -193,6 +193,8 @@ struct test_trampoline_t {
 /* サンプルコード
 // スレッドプールを作成する。
 thread_pool_t thread_pool;
+// ワーカースレッドを起動する。
+thread_pool.launch();
 // 加算を行うタスクを作成する。
 int result;
 thread_pool_t::task_t task = [&result] {
