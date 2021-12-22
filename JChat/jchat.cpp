@@ -1589,13 +1589,19 @@ jchat_bar_t::text_jChatToEQChat(
 	const std::string &jc_text // 変換する日本語チャットのテキスト(シフトJIS)。
 ) {
 	std::ostringstream eqc_text_out;
+	char pre_chr = '\0';
 	// EQチャット→日本語チャットと同じようにアイテムリンクの
 	// 変換を中心として、全角文字を考慮しながら処理していく。
 	for (auto iter = jc_text.begin(); iter != jc_text.end();) {
 		// 全角文字を考慮すると1文字ずつ処理していくしかない。
 		char chr = *iter++;
-		if (chr == JCHAT_LINK_OPEN) {
-			// リンクの始端('{')であれば、分割記号(':')までは番号となる。
+		// 始端('{')であれば、終端('}')までをリンクとみなす。
+		// ただしMQ2の変数との衝突を回避するため、直前の文字が
+		// 衝突回避記号('$')である場合はスルーする。
+		if (chr == JCHAT_LINK_OPEN &&
+			pre_chr != JCHAT_LINK_ESCAPE
+		) {
+			// 分割記号(':')までは番号となる。
 			std::size_t index = UINT_MAX;
 			std::ostringstream index_out;
 			while (iter != jc_text.end()) {
@@ -1631,9 +1637,10 @@ jchat_bar_t::text_jChatToEQChat(
 		} else {
 			// 始端('{')でなければ、そのまま出力する。
 			eqc_text_out << chr;
-			if (iter != jc_text.end() && char_isJLead(chr)) 
+			if (iter != jc_text.end() && char_isJLead(chr))
 				eqc_text_out << *iter++;
 		}
+		pre_chr = chr;
 	}
 	// 文字エンコーディングをシフトJISからutf-8に変換する。
 	return string_sjisToUtf8(eqc_text_out.str());

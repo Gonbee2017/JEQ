@@ -217,6 +217,7 @@ constexpr std::size_t INI_WINDOW_WIDTH_DEF = 300;       // ƒEƒCƒ“ƒhƒE‚Ì•‚ÌŠù’è’
 // “ú–{Œêƒ`ƒƒƒbƒg‚ÌƒŠƒ“ƒN‚Ì’è”B
 constexpr char JCHAT_LINK_CLOSE = '}';   // I’[‚Ì‹L†B
 constexpr char JCHAT_LINK_DIVIDER = ':'; // ”Ô†‚Æ–¼‘O‚ð•ªŠ„‚·‚é‹L†B
+constexpr char JCHAT_LINK_ESCAPE = '$';  // Õ“Ë‰ñ”ð‚Ì‹L†B
 constexpr char JCHAT_LINK_OPEN = '{';    // Žn’[‚Ì‹L†B
 
 // “ú–{Œêƒ`ƒƒƒbƒgƒo[‚Ì’è”B

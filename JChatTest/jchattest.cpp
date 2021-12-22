@@ -5918,6 +5918,14 @@ TEST_METHOD(test_jchat_bar_text_jChatToEQChat) {
 		std::string cmd = bar->text_jChatToEQChat(text);
 		Assert::AreEqual(std::string("Hoge\x12""234Foo\x12""Fuga\x12""345Bar\x12""Piyo"), cmd);
 	}
+	{ // MQ2の変数名を1個含むテキストを変換できるか？
+		context = {};
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
+		bar->data->link_bodies = {"12"};
+		std::string text = "Hoge${Foo}Fuga";
+		std::string cmd = bar->text_jChatToEQChat(text);
+		Assert::AreEqual(std::string("Hoge${Foo}Fuga"), cmd);
+	}
 	END_DEF_SPY_CLASS(jchat_bar_t);
 }
 
