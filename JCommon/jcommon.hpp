@@ -64,6 +64,11 @@
 
 namespace jeq {
 
+//// 定数式の定義
+
+// EQチャットのリンクの定数。
+constexpr char EQCHAT_LINK_EDGE = 0x12; // 両端の記号。
+
 //// 定数の宣言
 
 extern const std::size_t HARDWARE_CONCURRENCY;

@@ -178,7 +178,7 @@
 
 namespace jeq {
 
-//// 定数の定義
+//// 定数式の定義
 
 // チャンネル欄の定数。
 constexpr std::size_t CHANNEL_HEIGHT = 100; // 高さ。
@@ -200,9 +200,6 @@ constexpr COLORREF EDIT_OUTER_SUNKEN_COLOR = // 外側の枠線の右辺・下辺の色。
 constexpr COLORREF EDIT_OUTER_RAISED_COLOR = // 外側の枠線の左辺・上辺の色。
 	RGB(74, 93, 115);
 constexpr int EDIT_TOP = 2;                  // 上辺のY座標。
-
-// EQチャットのリンクの定数。
-constexpr char EQCHAT_LINK_EDGE = 0x12; // 両端の記号。
 
 // jchat.iniの定数。
 constexpr char INI_CHAT_COMMAND_SYMBOLS_DEF[] = "/#^";  // コマンド記号の列の既定値。
@@ -436,7 +433,7 @@ protected:
 	void prepare(HWND hwnd);
 	void storeRegistry();
 	std::string text_addChannel(const std::string &jc_text);
-	std::string text_eqChatToJChat(const char *eqc_text);
+	std::string text_eqChatToJChat(const std::string &eqc_text);
 	std::string text_jChatToEQChat(const std::string &jc_text);
 };
 

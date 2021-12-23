@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <climits>
 #include <cstddef>
-#include <cstring>
 #include <ios>
 #include <memory>
 #include <sstream>
@@ -1527,57 +1526,62 @@ jchat_bar_t::text_addChannel(
 // EQチャットからのテキストはAsciiなのでエンコーディングはそのままでよい。
 std::string // 変換した日本語チャットのテキスト(Ascii)。
 jchat_bar_t::text_eqChatToJChat(
-	const char *eqc_text // 変換するEQチャットのテキスト(Ascii)。
+	const std::string &eqc_text // 変換するEQチャットのテキスト(Ascii)。
 ) {
+	const auto &link_body_size = context.ini.chat.link_body_size;
 	std::ostringstream jc_text_out;
 	// EQチャットにおけるリンクは特殊な文字である0x12で囲まれている。
 	// そのため、まず0x12を見つけたらそこまではリテラルとなり、
 	// 次の0x12まではリンクの内容となり、以降繰り返しとなる。
+	auto iter = eqc_text.begin();
 	for (;;) {
 		// リンクの始端(0x12)を探す。
-		char *begin = std::strchr(
-			const_cast<char*>(eqc_text), 
+		auto link_begin = std::find(
+			iter, 
+			eqc_text.end(), 
 			EQCHAT_LINK_EDGE
 		);
 		// 見つからなかったら抜ける。
-		if (!begin) break;
+		if (link_begin == eqc_text.end()) break;
 		// 終端(0x12)を探す。
-		char *end = std::strchr(
-			begin + 1, 
+		auto link_end = std::find(
+			link_begin + 1, 
+			eqc_text.end(), 
 			EQCHAT_LINK_EDGE
 		);
 		// 見つからなかったら抜ける。
-		if (!end) break;
+		if (link_end == eqc_text.end()) break;
 		// 始端までのリテラルを出力する。
-		jc_text_out << std::string(eqc_text, begin - eqc_text);
+		jc_text_out << std::string(iter, link_begin);
 		// 内容が十分に長ければ有効なリンクとみなす。
-		std::size_t link_len = end - begin - 1;
-		if (link_len > context.ini.chat.link_body_size) {
+		std::size_t link_len = link_end - link_begin - 1;
+		if (link_len > link_body_size) {
 			// 次のような独自の形式に変換して出力する。
 			// "{番号:名前}"
-			std::size_t name_len = link_len - context.ini.chat.link_body_size;
-			char *name = begin + 1 + context.ini.chat.link_body_size;
+			auto name_begin = link_begin + 1 + link_body_size;
+			std::size_t name_len = link_len - link_body_size;
+			std::string name(name_begin, name_begin + name_len);
 			jc_text_out << string_printf(
 				"%c%d%c%.*s%c", 
 				JCHAT_LINK_OPEN,          // 始端の記号('{')。
 				data->link_bodies.size(), // 番号。
 				JCHAT_LINK_DIVIDER,       // 番号と名前を分割する記号(':')。
 				name_len,                 // 名前の長さ。
-				name,                     // 名前。
+				name.c_str(),             // 名前。
 				JCHAT_LINK_CLOSE          // 終端の記号('}')。
 			);
 			// リンクのボディ部分は、後でリンクを含んだ行を
 			// EQチャットの形式に戻せるように保存しておく。
 			data->link_bodies.emplace_back(
-				begin + 1, 
-				context.ini.chat.link_body_size
+				link_begin + 1, 
+				link_begin + 1 + link_body_size
 			);
 		}
 		// 終端の次の文字から繰り返す。
-		eqc_text = end + 1;
+		iter = link_end + 1;
 	}
 	// リンクが見つからなかったらリテラルとして出力する。
-	jc_text_out << eqc_text;
+	jc_text_out << std::string(iter, eqc_text.end());
 	return jc_text_out.str();
 }
 
