@@ -338,7 +338,7 @@ void _stringizeTo(std::ostream &out, const X &x, Manip &&manip);
 template <class X, class Lead, class ...Trails>
 void _stringizeTo(std::ostream &out, const X &x, Lead &&lead, Trails &&...trails);
 
-//// ŠÖ”‚Ì’è‹`
+//// ŠÖ”‚ÌéŒ¾
 
 POINT cursor_getPos();
 bool cursor_isOverWindow(HWND hwnd);
