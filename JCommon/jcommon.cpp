@@ -6,6 +6,7 @@
 
 #include <windows.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdarg>
 #include <cstddef>
@@ -89,7 +90,7 @@ thread_pool_t::work_t::work_t(
 	data->tasks_count = tasks_count;
 }
 
-// ワークに所属するタスク１個の実行が完了したら呼び出される。
+// ワークに所属するタスク1個の実行が完了したら呼び出される。
 void thread_pool_t::work_t::onTaskDone() {
 	auto lock = std_::make_unique_lock(&data->mutex);
 	++data->tasks_done;
@@ -338,11 +339,11 @@ void putLog(
 	));
 }
 
-// ２個の矩形が重複しているかどうかを判定する。
+// 2個の矩形が重複しているかどうかを判定する。
 bool // 真なら重複している、偽なら重複していない。
 rect_areOverlapped(
-	const RECT &rect1, // １個目の矩形。
-	const RECT &rect2  // ２個目の矩形。
+	const RECT &rect1, // 1個目の矩形。
+	const RECT &rect2  // 2個目の矩形。
 ) {
 	return section_areOverlapped(
 		rect1.left, 
@@ -357,6 +358,47 @@ rect_areOverlapped(
 	);
 }
 
+// シフトJISの文字列の部分を置換する。
+std::string // 部分を置換した文字列(シフトJIS)。
+sjis_replace(
+	const std::string &str,     // 部分を置換する文字列(シフトJIS)。
+	const std::string &pre_sub, // 置換前の部分(シフトJIS)。
+	const std::string &post_sub // 置換後の部分(シフトJIS)。
+) {
+	std::ostringstream result_out;
+	auto iter = str.begin();
+	while (iter != str.end()) {
+		if ((str.end() - iter) >= int(pre_sub.length()) &&
+			std::equal(iter, iter + pre_sub.length(), pre_sub.begin(), pre_sub.end())
+		) {
+			result_out << post_sub;
+			iter += pre_sub.length();
+		} else {
+			char chr = *iter++;
+			result_out << chr;
+			if (iter != str.end() && sjis_isLead(chr))
+				result_out << *iter++;
+		}
+	}
+	return result_out.str();
+}
+
+// シフトJISの文字列に含まれる大文字を小文字に変換する。
+std::string // 変換した文字列(シフトJIS)。
+sjis_toLower(
+	const std::string &src // 変換する文字列(シフトJIS)。
+) {
+	std::string dest;
+	for (auto iter = src.begin(); iter != src.end();) {
+		char chr = *iter++;
+		if (sjis_isLead(chr)) {
+			dest.append(1, chr);
+			if (iter != src.end()) dest.append(1, *iter++);
+		} else dest.append(1, std::tolower(chr));
+	}
+	return dest;
+}
+
 // 書式に従って可変長引数を文字列に埋め込む。
 // std::sprintfと違って結果をstd::stringで返す。
 std::string // 埋め込んだ文字列。
@@ -369,6 +411,30 @@ string_printf(
 	std::vsprintf(buff, fmt, args);
 	va_end(args);
 	return std::string(buff);
+}
+
+// 文字列の部分を置換する。
+std::string // 部分を置換した文字列。
+string_replace(
+	const std::string &str,     // 部分を置換する文字列。
+	const std::string &pre_sub, // 置換前の部分。
+	const std::string &post_sub // 置換後の部分。
+) {
+	std::ostringstream result_out;
+	auto iter = str.begin();
+	for (;;) {
+		auto sub_begin = std::search(
+			iter,
+			str.end(),
+			pre_sub.begin(),
+			pre_sub.end()
+		);
+		if (sub_begin == str.end()) break;
+		result_out << std::string(iter, sub_begin) << post_sub;
+		iter = sub_begin + pre_sub.length();
+	}
+	result_out << std::string(iter, str.end());
+	return result_out.str();
 }
 
 // 文字列をシフトJISからutf-8に変換する。
@@ -406,22 +472,6 @@ string_sjisToUtf16(
 	)) return std::wstring();
 	// 終端の'\0'を切り捨てる。
 	dest.resize(dest_len - 1);
-	return dest;
-}
-
-// 文字列に含まれる大文字を小文字に変換する。
-std::string // 変換した文字列。
-string_toLower(
-	const std::string &src // 変換する文字列。
-) {
-	std::string dest;
-	for (auto iter = src.begin(); iter != src.end();) {
-		char chr = *iter++;
-		if (char_isJLead(chr)) {
-			dest.append(1, chr);
-			if (iter != src.end()) dest.append(1, *iter++);
-		} else dest.append(1, std::tolower(chr));
-	}
 	return dest;
 }
 

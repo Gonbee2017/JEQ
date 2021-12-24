@@ -205,7 +205,7 @@ thread_pool_t::task_t task = [&result] {
 // タスクの非同期実行を依頼する。
 auto work = thread_pool.ask(task);
 ...
-// ワーク(この例ではタスク１個のみ）の実行が完了するまで待機する。
+// ワーク(この例ではタスク1個のみ）の実行が完了するまで待機する。
 work.waitUntilDone();
 // 結果を出力する。
 std::cout << result << std::endl;
@@ -267,7 +267,6 @@ protected:
 
 //// テンプレート関数とインライン関数の宣言
 
-inline bool char_isJLead(char chr);
 template <class X>
 void clampByMin(X &value, const X &min);
 template <class X>
@@ -292,6 +291,8 @@ template <template <class> class Container>
 #endif
 Container<named_value_t> ini_parseSection(const std::string &section);
 
+template <class Integer>
+std::size_t longestRunOfOnes(Integer integer);
 template <class Map>
 typename Map::mapped_type map_find(const Map &map, const typename Map::key_type &key, const typename Map::mapped_type &def_mapped = typename Map::mapped_type());
 template <class NamedValues>
@@ -308,6 +309,7 @@ template <class Container>
 void reverseClear(Container &container);
 template <class Number>
 bool section_areOverlapped(const Number &begin1, const Number &end1, const Number &begin2, const Number &end2);
+inline bool sjis_isLead(char chr);
 template <class X>
 std::string stringize(const X &x);
 template <class X, class Manip>
@@ -320,7 +322,8 @@ template <template <class> class Container = std::vector>
 #else
 template <template <class> class Container>
 #endif
-Container<std::string> string_split(const std::string &str,	char delim,	bool allow_empty = true);
+Container<std::string> sjis_split(const std::string &str,	char delim,	bool allow_empty = true);
+inline std::size_t utf8_getLetterSize(char chr);
 
 //// 非公開なテンプレート関数とインライン関数の宣言
 
@@ -349,10 +352,12 @@ POINT point_clientToScreen(POINT pos, HWND hwnd);
 POINT point_screenToClient(POINT pos, HWND hwnd);
 void putLog(std::ostream *log, const std::string &mes);
 bool rect_areOverlapped(const RECT &rect1, const RECT &rect2);
+std::string sjis_replace(const std::string &str, const std::string &pre_sub, const std::string &post_sub);
+std::string sjis_toLower(const std::string &src);
 std::string string_printf(const char *fmt, ...);
+std::string string_replace(const std::string &str, const std::string &pre_sub, const std::string &post_sub);
 std::string string_sjisToUtf8(const std::string &src);
 std::wstring string_sjisToUtf16(const std::string &src);
-std::string string_toLower(const std::string &src);
 RECT window_getClientRect(HWND hwnd);
 RECT window_getRect(HWND hwnd);
 std::string window_getText(HWND hwnd);
@@ -493,15 +498,6 @@ thread_pool_t::ask(
 
 //// テンプレート関数とインライン関数の定義
 
-// 文字がシフトJISの1バイト目かどうかを判定する。
-bool // 真ならシフトJISの1バイト目、偽ならそれ以外。
-char_isJLead(
-	char chr // 文字。
-) {
-	BYTE byte = BYTE(chr);
-	return (byte >= 0x81 && byte <= 0x9f) || (byte >= 0xe0 && byte <= 0xfc);
-}
-
 // 値を最小値以上にする。
 template <
 	class X // 値の型。
@@ -612,7 +608,7 @@ ini_parseSection(
 	for (;;) {
 		char chr = *chr_iter++;
 		if (chr) {
-			if (char_isJLead(chr)) {
+			if (sjis_isLead(chr)) {
 				cur->append(1, chr);
 				chr = *chr_iter++;
 				if (chr) cur->append(1, chr);
@@ -627,6 +623,24 @@ ini_parseSection(
 	}
 	if (!key.name.empty()) keys.emplace_back(key);
 	return keys;
+}
+
+// 整数の上位から続く1ビットを数える。
+template <
+	class Integer // 整数の型。
+> std::size_t 
+longestRunOfOnes(
+	Integer integer // 整数。
+) {
+	static const std::size_t LENGTH = 8 * sizeof(Integer);
+	static const Integer MASK = Integer(1) << (LENGTH - 1);
+	std::size_t count = 0;
+	for (std::size_t i = 0; i < LENGTH; ++i) {
+		if (integer & MASK) ++count;
+		else break;
+		integer <<= 1;
+	}
+	return count;
 }
 
 // マップから探す。
@@ -699,7 +713,7 @@ parseArguments(
 				} else if (pre_chr == '"') break;
 				else {
 					token->append(1, chr);
-					if (iter != args.end() && char_isJLead(chr)) {
+					if (iter != args.end() && sjis_isLead(chr)) {
 						token->append(1, *iter++);
 						pre_chr = '\0';
 					} else pre_chr = chr;
@@ -714,7 +728,7 @@ parseArguments(
 			token = &value;
 		else {
 			token->append(1, chr);
-			if (iter != args.end() && char_isJLead(chr))
+			if (iter != args.end() && sjis_isLead(chr))
 				token->append(1, *iter++);
 		}
 	}
@@ -755,20 +769,60 @@ template <
 	while (!container.empty()) container.pop_back();
 }
 
-// ２個の区間が重複しているかどうかを判定する。
+// 2個の区間が重複しているかどうかを判定する。
 // 区間は[begin, end)であり、endは含まない。
 template <
 	class Number // 数値の型。
 > bool // 真なら重複している、偽なら重複していない。
 section_areOverlapped(
-	const Number &begin1, // １個目の区間の始端値。
-	const Number &end1,   // １個目の区間の終端値。
-	const Number &begin2, // ２個目の区間の始端値。
-	const Number &end2    // ２個目の区間の終端値。
+	const Number &begin1, // 1個目の区間の始端値。
+	const Number &end1,   // 1個目の区間の終端値。
+	const Number &begin2, // 2個目の区間の始端値。
+	const Number &end2    // 2個目の区間の終端値。
 ) {
 	return (begin1 >= begin2 && begin1 < end2) ||
 		(end1 > begin2 && end1 <= end2) ||
 		(begin1 < begin2 && end1 > end2);
+}
+
+// シフトJISの全角文字の1バイト目かどうかを判定する。
+bool // 真なら全角文字の1バイト目、偽ならそれ以外。
+sjis_isLead(
+	char chr // 文字の1バイト目。
+) {
+	BYTE byte = BYTE(chr);
+	return (byte >= 0x81 && byte <= 0x9f) || (byte >= 0xe0 && byte <= 0xfc);
+}
+
+// シフトJISの文字列を区切り文字で分割する。
+template <
+	template <class> class Container // 文字列のコンテナの型。
+> Container<std::string> // 分割した文字列(シフトJIS)のコンテナ。
+sjis_split(
+	const std::string &str, // 分割する文字列(シフトJIS)。
+	char delim,             // 区切り文字。
+	bool allow_empty        // 空文字列をコンテナに追加するかどうか。
+	                        // 真なら追加し、偽なら追加しない。省略すると真。
+) {
+	Container<std::string> toks;
+	std::string tok;
+	auto flush = [allow_empty, &toks, &tok] {
+		if (allow_empty || !tok.empty()) {
+			toks.emplace_back(tok);
+			tok.clear();
+		}
+	};
+	for (auto iter = str.begin(); iter != str.end();) {
+		char chr = *iter++;
+		if (chr == delim) flush();
+		else {
+			tok.push_back(chr);
+			if (sjis_isLead(chr) && iter != str.end()) 
+				tok.push_back(*iter++);
+		}
+	}
+	flush();
+	return toks;
 }
 
 // 何かを文字列に変換する。
@@ -827,35 +881,21 @@ stringize(
 	return out.str();
 }
 
-// 文字列を区切り文字で分割する。
-template <
-	template <class> class Container // 文字列のコンテナの型。
-> Container<std::string> // 分割した文字列のコンテナ。
-string_split(
-	const std::string &str, // 分割する文字列。
-	char delim,             // 区切り文字。
-	bool allow_empty        // 空文字列をコンテナに追加するかどうか。
-	                        // 真なら追加し、偽なら追加しない。省略すると真。
+// utf-8の文字のサイズを取得する。
+// ただし文字の2バイト目以降の場合はゼロ、
+// 不正なビットパターンの場合はUINT_MAXを返す。
+std::size_t // 文字のサイズ。
+utf8_getLetterSize(
+	char chr // 文字の1バイト目。
 ) {
-	Container<std::string> toks;
-	std::string tok;
-	auto flush = [allow_empty, &toks, &tok] {
-		if (allow_empty || !tok.empty()) {
-			toks.emplace_back(tok);
-			tok.clear();
-		}
+	switch (longestRunOfOnes<BYTE>(chr)) {
+	case 0: return 1;
+	case 1: return 0;
+	case 2: return 2;
+	case 3: return 3;
+	case 4: return 4;
+	default: return UINT_MAX;
 	};
-	for (auto iter = str.begin(); iter != str.end();) {
-		char chr = *iter++;
-		if (chr == delim) flush();
-		else {
-			tok.push_back(chr);
-			if (char_isJLead(chr) && iter != str.end()) 
-				tok.push_back(*iter++);
-		}
-	}
-	flush();
-	return toks;
 }
 
 //// 非公開なテンプレート関数とインライン関数の定義

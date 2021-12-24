@@ -4,6 +4,7 @@
 #include <windows.h>
 
 #include <chrono>
+#include <climits>
 #include <condition_variable>
 #include <cstddef>
 #include <cstdlib>
@@ -20,18 +21,6 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 using namespace jeq;
 
 TEST_CLASS(jcommon_test) {
-
-TEST_METHOD(test_char_isJLead) {
-	// 境界値で正しく動作できるか？
-	Assert::IsFalse(char_isJLead(char(0x80)));
-	Assert::IsTrue (char_isJLead(char(0x81)));
-	Assert::IsTrue (char_isJLead(char(0x9f)));
-	Assert::IsFalse(char_isJLead(char(0xa0)));
-	Assert::IsFalse(char_isJLead(char(0xdf)));
-	Assert::IsTrue (char_isJLead(char(0xe0)));
-	Assert::IsTrue (char_isJLead(char(0xfc)));
-	Assert::IsFalse(char_isJLead(char(0xfd)));
-}
 
 TEST_METHOD(test_clampByMin) {
 	// 境界値で正しく動作できるか？
@@ -488,6 +477,22 @@ TEST_METHOD(test_ini_setKeyValue) {
 	}
 }
 
+TEST_METHOD(test_longestRunOfOnes) {
+	// 正しく動作できるか？
+	Assert::AreEqual( 0, int(longestRunOfOnes<BYTE>(0x00)));
+	Assert::AreEqual( 0, int(longestRunOfOnes<BYTE>(0x40)));
+	Assert::AreEqual( 1, int(longestRunOfOnes<BYTE>(0x80)));
+	Assert::AreEqual( 1, int(longestRunOfOnes<BYTE>(0xa0)));
+	Assert::AreEqual( 2, int(longestRunOfOnes<BYTE>(0xc0)));
+	Assert::AreEqual( 2, int(longestRunOfOnes<BYTE>(0xd0)));
+	Assert::AreEqual( 7, int(longestRunOfOnes<BYTE>(0xfe)));
+	Assert::AreEqual( 8, int(longestRunOfOnes<BYTE>(0xff)));
+	Assert::AreEqual( 0, int(longestRunOfOnes<WORD>(0x7fff)));
+	Assert::AreEqual( 1, int(longestRunOfOnes<WORD>(0xbfff)));
+	Assert::AreEqual(15, int(longestRunOfOnes<WORD>(0xfffe)));
+	Assert::AreEqual(16, int(longestRunOfOnes<WORD>(0xffff)));
+}
+
 TEST_METHOD(test_map_find) {
 	{ // 正しく動作できるか？
 		std::map<int,std::string> strs = {
@@ -850,9 +855,85 @@ TEST_METHOD(test_section_areOverlapped) {
 	Assert::IsTrue (section_areOverlapped(2, 5, 1, 6));
 }
 
+TEST_METHOD(test_sjis_isLead) {
+	// 境界値で正しく動作できるか？
+	Assert::IsFalse(sjis_isLead(char(0x80)));
+	Assert::IsTrue (sjis_isLead(char(0x81)));
+	Assert::IsTrue (sjis_isLead(char(0x9f)));
+	Assert::IsFalse(sjis_isLead(char(0xa0)));
+	Assert::IsFalse(sjis_isLead(char(0xdf)));
+	Assert::IsTrue (sjis_isLead(char(0xe0)));
+	Assert::IsTrue (sjis_isLead(char(0xfc)));
+	Assert::IsFalse(sjis_isLead(char(0xfd)));
+}
+
+TEST_METHOD(test_sjis_replace) {
+	// 正しく動作できるか？
+	Assert::AreEqual(std::string("AちAちbろAちbろcは"), sjis_replace("aいaいbろaいbろcは", "aい", "Aち"));
+	Assert::AreEqual(std::string("aいAちBりAちBりcは"), sjis_replace("aいaいbろaいbろcは", "aいbろ", "AちBり"));
+	Assert::AreEqual(std::string("aいaいbろAちBりCぬ"), sjis_replace("aいaいbろaいbろcは", "aいbろcは", "AちBりCぬ"));
+
+}
+
+TEST_METHOD(test_sjis_split) {
+	{ // 半角の文字列を分割できるか？空文字列は許す。
+		std::string str = "a,bb,,ccc,,,";
+		auto toks = sjis_split(str, ',');
+		Assert::AreEqual(7, int(toks.size()));
+		Assert::AreEqual(std::string("a"),   toks[0]);
+		Assert::AreEqual(std::string("bb"),  toks[1]);
+		Assert::AreEqual(std::string(""),    toks[2]);
+		Assert::AreEqual(std::string("ccc"), toks[3]);
+		Assert::AreEqual(std::string(""),    toks[4]);
+		Assert::AreEqual(std::string(""),    toks[5]);
+		Assert::AreEqual(std::string(""),    toks[6]);
+	}
+	{ // 半角の文字列を分割できるか？空文字列は許さない。
+		std::string str = "a,bb,,ccc,,,";
+		auto toks = sjis_split(str, ',', false);
+		Assert::AreEqual(3, int(toks.size()));
+		Assert::AreEqual(std::string("a"),   toks[0]);
+		Assert::AreEqual(std::string("bb"),  toks[1]);
+		Assert::AreEqual(std::string("ccc"), toks[2]);
+	}
+	{ // 全角の文字列を分割できるか？空文字列は許す。
+		std::string str = "い,ろろ,,ははは,,,";
+		auto toks = sjis_split(str, ',');
+		Assert::AreEqual(7, int(toks.size()));
+		Assert::AreEqual(std::string("い"),     toks[0]);
+		Assert::AreEqual(std::string("ろろ"),   toks[1]);
+		Assert::AreEqual(std::string(""),       toks[2]);
+		Assert::AreEqual(std::string("ははは"), toks[3]);
+		Assert::AreEqual(std::string(""),       toks[4]);
+		Assert::AreEqual(std::string(""),       toks[5]);
+		Assert::AreEqual(std::string(""),       toks[6]);
+	}
+	{ // 全角の文字列を分割できるか？空文字列は許さない。
+		std::string str = "い,ろろ,,ははは,,,";
+		auto toks = sjis_split(str, ',', false);
+		Assert::AreEqual(std::size_t(3), toks.size());
+		Assert::AreEqual(std::string("い"),     toks[0]);
+		Assert::AreEqual(std::string("ろろ"),   toks[1]);
+		Assert::AreEqual(std::string("ははは"), toks[2]);
+	}
+}
+
+TEST_METHOD(test_sjis_toLower) {
+	// 正しく動作できるか？
+	Assert::AreEqual(std::string("hいoろgはe"), sjis_toLower("HいoろGはe"));
+	Assert::AreEqual(std::string("ちfりuぬgるaを"), sjis_toLower("ちfりUぬgるAを"));
+}
+
 TEST_METHOD(test_string_printf) {
 	// 正しく動作できるか？
 	Assert::AreEqual(std::string("0012 0.34 Hoge"), string_printf("%04d %.2f %s", 12, 0.345, "Hoge"));
+}
+
+TEST_METHOD(test_string_replace) {
+	// 正しく動作できるか？
+	Assert::AreEqual(std::string(u8"AちAちbろAちbろcは"), string_replace(u8"aいaいbろaいbろcは", u8"aい", u8"Aち"));
+	Assert::AreEqual(std::string(u8"aいAちBりAちBりcは"), string_replace(u8"aいaいbろaいbろcは", u8"aいbろ", u8"AちBり"));
+	Assert::AreEqual(std::string(u8"aいaいbろAちBりCぬ"), string_replace(u8"aいaいbろaいbろcは", u8"aいbろcは", u8"AちBりCぬ"));
 }
 
 TEST_METHOD(test_string_sjisToUtf16) {
@@ -867,55 +948,6 @@ TEST_METHOD(test_string_sjisToUtf8) {
 	Assert::AreEqual(std::string(u8"Hoge"), string_sjisToUtf8("Hoge"));
 	// 全角の文字列を変換できるか？
 	Assert::AreEqual(std::string(u8"ホゲ"), string_sjisToUtf8("ホゲ"));
-}
-
-TEST_METHOD(test_string_split) {
-	{ // 半角の文字列を分割できるか？空文字列は許す。
-		std::string str = "a,bb,,ccc,,,";
-		auto toks = string_split(str, ',');
-		Assert::AreEqual(7, int(toks.size()));
-		Assert::AreEqual(std::string("a"),   toks[0]);
-		Assert::AreEqual(std::string("bb"),  toks[1]);
-		Assert::AreEqual(std::string(""),    toks[2]);
-		Assert::AreEqual(std::string("ccc"), toks[3]);
-		Assert::AreEqual(std::string(""),    toks[4]);
-		Assert::AreEqual(std::string(""),    toks[5]);
-		Assert::AreEqual(std::string(""),    toks[6]);
-	}
-	{ // 半角の文字列を分割できるか？空文字列は許さない。
-		std::string str = "a,bb,,ccc,,,";
-		auto toks = string_split(str, ',', false);
-		Assert::AreEqual(3, int(toks.size()));
-		Assert::AreEqual(std::string("a"),   toks[0]);
-		Assert::AreEqual(std::string("bb"),  toks[1]);
-		Assert::AreEqual(std::string("ccc"), toks[2]);
-	}
-	{ // 全角の文字列を分割できるか？空文字列は許す。
-		std::string str = "い,ろろ,,ははは,,,";
-		auto toks = string_split(str, ',');
-		Assert::AreEqual(7, int(toks.size()));
-		Assert::AreEqual(std::string("い"),     toks[0]);
-		Assert::AreEqual(std::string("ろろ"),   toks[1]);
-		Assert::AreEqual(std::string(""),       toks[2]);
-		Assert::AreEqual(std::string("ははは"), toks[3]);
-		Assert::AreEqual(std::string(""),       toks[4]);
-		Assert::AreEqual(std::string(""),       toks[5]);
-		Assert::AreEqual(std::string(""),       toks[6]);
-	}
-	{ // 全角の文字列を分割できるか？空文字列は許さない。
-		std::string str = "い,ろろ,,ははは,,,";
-		auto toks = string_split(str, ',', false);
-		Assert::AreEqual(std::size_t(3), toks.size());
-		Assert::AreEqual(std::string("い"),     toks[0]);
-		Assert::AreEqual(std::string("ろろ"),   toks[1]);
-		Assert::AreEqual(std::string("ははは"), toks[2]);
-	}
-}
-
-TEST_METHOD(test_string_toLower) {
-	// 正しく動作できるか？
-	Assert::AreEqual(std::string("hいoろgはe"), string_toLower("HいoろGはe"));
-	Assert::AreEqual(std::string("ちfりuぬgるaを"), string_toLower("ちfりUぬgるAを"));
 }
 
 TEST_METHOD(test_stringize) {
@@ -1249,7 +1281,7 @@ TEST_METHOD(test_thread_pool_multithread) {
 	std_::make_unique_lock_true = std_::make_unique_lock_DEF;
 	std_::thread_join_true = std_::thread_join_DEF;
 	std_::unique_lock_unlock_true = std_::unique_lock_unlock_DEF;
-	{ // １個のタスクを非同期実行できるか？
+	{ // 1個のタスクを非同期実行できるか？
 		thread_pool_t thread_pool;
 		int result = 0;
 		std::mutex mutex;
@@ -1271,7 +1303,7 @@ TEST_METHOD(test_thread_pool_multithread) {
 		Assert::IsTrue(work.isDone());
 		Assert::AreEqual(3, result);
 	}
-	{ // ５個のタスクを非同期実行できるか？
+	{ // 5個のタスクを非同期実行できるか？
 	  // indexが2->4->0->3->1の順で計算する。
 		thread_pool_t thread_pool;
 		int result = 0;
@@ -1527,6 +1559,16 @@ TEST_METHOD(test_thread_pool_worker_procedure) {
 		Assert::AreEqual(std::string(), help.getLine());
 	}
 	END_DEF_SPY_CLASS(thread_pool_t);
+}
+
+TEST_METHOD(test_utf8_getLetterSize) {
+	// 正しく動作できるか？
+	Assert::AreEqual(1            , int(utf8_getLetterSize(0x40u)));
+	Assert::AreEqual(0            , int(utf8_getLetterSize(0xa0u)));
+	Assert::AreEqual(2            , int(utf8_getLetterSize(0xd0u)));
+	Assert::AreEqual(3            , int(utf8_getLetterSize(0xe8u)));
+	Assert::AreEqual(4            , int(utf8_getLetterSize(0xf4u)));
+	Assert::AreEqual(int(UINT_MAX), int(utf8_getLetterSize(0xfau)));
 }
 
 TEST_METHOD(test_window_getClientRect) {

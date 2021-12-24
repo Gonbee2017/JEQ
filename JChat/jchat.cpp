@@ -1615,7 +1615,7 @@ jchat_bar_t::text_jChatToEQChat(
 					break;
 				}
 				index_out << chr;
-				if (iter != jc_text.end() && char_isJLead(chr)) 
+				if (iter != jc_text.end() && sjis_isLead(chr)) 
 					index_out << *iter++;
 			}
 			// 分割記号(':')から終端('}')までは名前となる。
@@ -1628,7 +1628,7 @@ jchat_bar_t::text_jChatToEQChat(
 					break;
 				}
 				name_out << chr;
-				if (iter != jc_text.end() && char_isJLead(chr)) 
+				if (iter != jc_text.end() && sjis_isLead(chr)) 
 					name_out << *iter++;
 			}
 			// 番号と名前が有効なら、EQチャットの形式で出力する。
@@ -1641,7 +1641,7 @@ jchat_bar_t::text_jChatToEQChat(
 		} else {
 			// 始端('{')でなければ、そのまま出力する。
 			eqc_text_out << chr;
-			if (iter != jc_text.end() && char_isJLead(chr))
+			if (iter != jc_text.end() && sjis_isLead(chr))
 				eqc_text_out << *iter++;
 		}
 		pre_chr = chr;

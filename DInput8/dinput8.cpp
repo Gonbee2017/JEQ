@@ -187,7 +187,7 @@ onProcessDetach() {
 std::filesystem::path // 見つかったパス。見つからなかったら空っぽ。
 searchTrueDLL() {
 	// PATHの値をセミコロンで分割し、ディレクトリのコンテナに格納する。
-	auto search_dirs = string_split(std_::getenv("PATH"), ';', false);
+	auto search_dirs = sjis_split(std_::getenv("PATH"), ';', false);
 	// PATHの各ディレクトリを巡回する。
 	for (const std::string &search_dir : search_dirs) {
 		// そのディレクトリにあるdinput8.dllのパスを作成する。
