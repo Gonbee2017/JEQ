@@ -475,6 +475,104 @@ string_sjisToUtf16(
 	return dest;
 }
 
+// 文字列をutf8からシフトJISに変換する。
+std::string // 変換したシフトJISの文字列。
+string_utf8ToSJIS(
+	const std::string &src // 変換するutf-8の文字列。
+) {
+	return wstring_utf16ToSJIS(string_utf8ToUtf16(src));
+}
+
+// 文字列をutf-8からutf-16に変換する。
+std::wstring // 変換したutf-16の文字列。
+string_utf8ToUtf16(
+	const std::string &src // 変換するutf-8のの文字列。
+) {
+	// 変換後の長さを取得する。
+	int dest_len = MultiByteToWideChar(
+		CP_UTF8, 
+		0, 
+		src.data(), 
+		-1, 
+		nullptr, 
+		0
+	);
+	// 変換後の文字列を格納する領域を確保する。
+	std::wstring dest(dest_len, L'\0');
+	// 変換する。
+	if (!MultiByteToWideChar(
+		CP_UTF8, 
+		0, 
+		src.data(), 
+		-1, 
+		LPWSTR(dest.data()), 
+		int(dest.size())
+	)) return std::wstring();
+	// 終端の'\0'を切り捨てる。
+	dest.resize(dest_len - 1);
+	return dest;
+}
+
+// utf-8の文字列内の長い単語を短い単語に分割する。
+// ここで単語とはスペース(' ')かタブ('\t')で区切られた部分のことである。
+// また長い単語とは長さが15バイトを超える単語のことである。
+// 例えばu8"あいうえおかきくけこ"という30バイト×1個の長い単語は、
+// u8"あいうえお かきくけこ"という15バイト×2個の短い単語に分割される。
+// また1バイトの文字と2バイト以上の文字の間には必ずスペース(' ')を挿入する。
+// 例えばu8"あaいiうuえeおo"ならu8"あ a い i う u え e お o"になる。
+// ただし、どれだけ長くても1バイトの文字の間にはスペース(' ')を挿入しない。
+// 例えばu8"1234567890123456"ならu8"1234567890123456"になる。
+std::string // 短い単語に分割した文字列(utf-8)。
+utf8_divideLongWords(
+	const std::string &message, // 短い単語に分割する文字列(utf-8)。
+	std::size_t link_body_size  // リンクのボディ部分のサイズ。
+) {
+	std::ostringstream result_out;
+	std::size_t word_len = 0;
+	std::size_t letter_size;
+	std::size_t pre_letter_size = 0;
+	bool link = false;
+	auto iter = message.begin();
+	while (iter != message.end()) {
+		char chr = *iter++;
+		if (chr == ' ' || chr == '\t') {
+			letter_size = 0;
+			result_out << chr;
+			word_len = 0;
+		} else if (chr == EQCHAT_LINK_EDGE) {
+			letter_size = 0;
+			result_out << chr;
+			if (!link) {
+				for (std::size_t i = 0; i < link_body_size; ++i) {
+					if (iter == message.end()) break;
+					result_out << *iter++;
+				}
+			}
+			link ^= 1;
+			word_len = 0;
+		} else {
+			letter_size = utf8_getLetterSize(chr);
+			if ((letter_size == 1 && pre_letter_size > 1) ||
+				(letter_size > 1 && pre_letter_size == 1) ||
+				(letter_size > 1 && pre_letter_size > 1 && 
+					word_len + letter_size > EQCHAT_GOOD_WORD_MAX_LENGTH
+				)
+			) {
+				result_out << ' ';
+				word_len = 0;
+			}
+			result_out << chr;
+			for (std::size_t i = 1; i < letter_size; ++i) {
+				if (iter == message.end()) break;
+				result_out << *iter++;
+			}
+			word_len += letter_size;
+		}
+		pre_letter_size = letter_size;
+	}
+	return result_out.str();
+}
+
 // ウインドウのクライアント領域の矩形を取得する。
 RECT // 取得したクライアント領域の矩形。
 window_getClientRect(
@@ -522,6 +620,40 @@ window_isTopMost(
 	HWND hwnd // ウインドウのハンドル。
 ) {
 	return api::GetWindowLong(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST;
+}
+
+// 文字列をutf-16からシフトJISに変換する。
+std::string // 変換したシフトJISの文字列。
+wstring_utf16ToSJIS(
+	const std::wstring &src // 変換するutf-16の文字列。
+) {
+	// 変換後の長さを取得する。
+	int dest_len = WideCharToMultiByte(
+		CP_ACP, 
+		0, 
+		src.data(), 
+		-1, 
+		nullptr, 
+		0, 
+		nullptr, 
+		nullptr
+	);
+	// 変換後の文字列を格納する領域を確保する。
+	std::string dest(dest_len, '\0');
+	// 変換する。
+	if (!WideCharToMultiByte(
+		CP_ACP, 
+		0, 
+		src.data(), 
+		-1, 
+		LPSTR(dest.data()), 
+		int(dest.size()), 
+		nullptr, 
+		nullptr
+	)) return std::string();
+	// 終端の'\0'を切り捨てる。
+	dest.resize(dest_len - 1);
+	return dest;
 }
 
 // 文字列をutf-16からutf-8に変換する。

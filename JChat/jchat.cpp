@@ -1647,7 +1647,11 @@ jchat_bar_t::text_jChatToEQChat(
 		pre_chr = chr;
 	}
 	// 文字エンコーディングをシフトJISからutf-8に変換する。
-	return string_sjisToUtf8(eqc_text_out.str());
+	// さらに長い単語を短い単語に分割する。
+	return utf8_divideLongWords(
+		string_sjisToUtf8(eqc_text_out.str()), 
+		context.ini.chat.link_body_size
+	);
 }
 
 // jchat.logにエラーログを書き込み、jchat.dllを停止する。

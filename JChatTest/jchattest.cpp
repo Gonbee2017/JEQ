@@ -5868,7 +5868,7 @@ TEST_METHOD(test_jchat_bar_text_jChatToEQChat) {
 		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		std::string text = "Hoge";
 		std::string cmd = bar->text_jChatToEQChat(text);
-		Assert::AreEqual(std::string("Hoge"), cmd);
+		Assert::AreEqual(std::string(u8"Hoge"), cmd);
 	}
 	{ // 分割記号のないリンクを含むテキストを変換できるか？
 		context = {};
@@ -5876,7 +5876,7 @@ TEST_METHOD(test_jchat_bar_text_jChatToEQChat) {
 		bar->data->link_bodies = {"12"};
 		std::string text = "Hoge{0Fuga";
 		std::string cmd = bar->text_jChatToEQChat(text);
-		Assert::AreEqual(std::string("Hoge"), cmd);
+		Assert::AreEqual(std::string(u8"Hoge"), cmd);
 	}
 	{ // 終端のないリンクを含むテキストを変換できるか？
 		context = {};
@@ -5884,7 +5884,7 @@ TEST_METHOD(test_jchat_bar_text_jChatToEQChat) {
 		bar->data->link_bodies = {"12"};
 		std::string text = "Hoge{0:FooFuga";
 		std::string cmd = bar->text_jChatToEQChat(text);
-		Assert::AreEqual(std::string("Hoge"), cmd);
+		Assert::AreEqual(std::string(u8"Hoge"), cmd);
 	}
 	{ // 負の番号のリンクを含むテキストを変換できるか？
 		context = {};
@@ -5892,7 +5892,7 @@ TEST_METHOD(test_jchat_bar_text_jChatToEQChat) {
 		bar->data->link_bodies = {"12"};
 		std::string text = "Hoge{-1:Foo}Fuga";
 		std::string cmd = bar->text_jChatToEQChat(text);
-		Assert::AreEqual(std::string("HogeFuga"), cmd);
+		Assert::AreEqual(std::string(u8"HogeFuga"), cmd);
 	}
 	{ // サイズオーバーの番号のリンクを含むテキストを変換できるか？
 		context = {};
@@ -5900,7 +5900,7 @@ TEST_METHOD(test_jchat_bar_text_jChatToEQChat) {
 		bar->data->link_bodies = {"12"};
 		std::string text = "Hoge{2:Foo}Fuga";
 		std::string cmd = bar->text_jChatToEQChat(text);
-		Assert::AreEqual(std::string("HogeFuga"), cmd);
+		Assert::AreEqual(std::string(u8"HogeFuga"), cmd);
 	}
 	{ // リンクを1個含むテキストを変換できるか？
 		context = {};
@@ -5908,7 +5908,7 @@ TEST_METHOD(test_jchat_bar_text_jChatToEQChat) {
 		bar->data->link_bodies = {"12"};
 		std::string text = "Hoge{0:Foo}Fuga";
 		std::string cmd = bar->text_jChatToEQChat(text);
-		Assert::AreEqual(std::string("Hoge\x12""12Foo\x12""Fuga"), cmd);
+		Assert::AreEqual(std::string(u8"Hoge\x12""12Foo\x12""Fuga"), cmd);
 	}
 	{ // リンクを2個含むテキストを変換できるか？
 		context = {};
@@ -5916,7 +5916,7 @@ TEST_METHOD(test_jchat_bar_text_jChatToEQChat) {
 		bar->data->link_bodies = {"123", "234", "345"};
 		std::string text = "Hoge{1:Foo}Fuga{2:Bar}Piyo";
 		std::string cmd = bar->text_jChatToEQChat(text);
-		Assert::AreEqual(std::string("Hoge\x12""234Foo\x12""Fuga\x12""345Bar\x12""Piyo"), cmd);
+		Assert::AreEqual(std::string(u8"Hoge\x12""234Foo\x12""Fuga\x12""345Bar\x12""Piyo"), cmd);
 	}
 	{ // MQ2の変数名を1個含むテキストを変換できるか？
 		context = {};
@@ -5924,7 +5924,14 @@ TEST_METHOD(test_jchat_bar_text_jChatToEQChat) {
 		bar->data->link_bodies = {"12"};
 		std::string text = "Hoge${Foo}Fuga";
 		std::string cmd = bar->text_jChatToEQChat(text);
-		Assert::AreEqual(std::string("Hoge${Foo}Fuga"), cmd);
+		Assert::AreEqual(std::string(u8"Hoge${Foo}Fuga"), cmd);
+	}
+	{ // 15バイトを超える全角文字を含むテキストを変換できるか？
+		context = {};
+		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
+		std::string text = "あいうえおかきくけこ";
+		std::string cmd = bar->text_jChatToEQChat(text);
+		Assert::AreEqual(std::string(u8"あいうえお かきくけこ"), cmd);
 	}
 	END_DEF_SPY_CLASS(jchat_bar_t);
 }

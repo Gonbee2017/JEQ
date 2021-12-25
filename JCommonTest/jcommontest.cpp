@@ -950,6 +950,20 @@ TEST_METHOD(test_string_sjisToUtf8) {
 	Assert::AreEqual(std::string(u8"ホゲ"), string_sjisToUtf8("ホゲ"));
 }
 
+TEST_METHOD(test_string_utf8ToSJIS) {
+	// 半角の文字列を変換できるか？
+	Assert::AreEqual(std::string("Hoge"), string_utf8ToSJIS(u8"Hoge"));
+	// 全角の文字列を変換できるか？
+	Assert::AreEqual(std::string("ホゲ"), string_utf8ToSJIS(u8"ホゲ"));
+}
+
+TEST_METHOD(test_string_utf8ToUtf16) {
+	// 半角の文字列を変換できるか？
+	Assert::AreEqual(std::wstring(L"Hoge"), string_utf8ToUtf16(u8"Hoge"));
+	// 全角の文字列を変換できるか？
+	Assert::AreEqual(std::wstring(L"ホゲ"), string_utf8ToUtf16(u8"ホゲ"));
+}
+
 TEST_METHOD(test_stringize) {
 	{ // intを変換できるか？
 		Assert::AreEqual(std::string("1"), stringize(1));
@@ -1561,6 +1575,35 @@ TEST_METHOD(test_thread_pool_worker_procedure) {
 	END_DEF_SPY_CLASS(thread_pool_t);
 }
 
+TEST_METHOD(test_utf8_divideLongWords) {
+	{ // 半角文字のみを含むメッセージを分割しないか？
+		Assert::AreEqual(std::string(u8"1234567890123456"), utf8_divideLongWords(u8"1234567890123456", 1));
+	}
+	{ // 全角文字のみを含むメッセージを分割できるか？
+		Assert::AreEqual(std::string(u8"あいうえお"), utf8_divideLongWords(u8"あいうえお", 1));
+		Assert::AreEqual(std::string(u8"あいうえお かきくけこ"), utf8_divideLongWords(u8"あいうえおかきくけこ", 1));
+		Assert::AreEqual(std::string(u8"あいうえお かきくけこ"), utf8_divideLongWords(u8"あいうえお かきくけこ", 1));
+		Assert::AreEqual(std::string(u8"あい うえおかき く けこ"), utf8_divideLongWords(u8"あい うえおかきく けこ", 1));
+	}
+	{ // 全角文字と半角文字の両方を含むメッセージを分割できるか？
+		Assert::AreEqual(std::string(u8"あ a い i う u え e お o"), utf8_divideLongWords(u8"あaいiうuえeおo", 1));
+	}
+	{ // リンクを含むメッセージを分割できるか？
+		Assert::AreEqual(
+			std::string(u8"あいうえお\x12""1かきくけこ\x12""さしすせそ"), 
+			utf8_divideLongWords(u8"あいうえお\x12""1かきくけこ\x12""さしすせそ", 1)
+		);
+		Assert::AreEqual(
+			std::string(u8"あいうえお\x12""1かきくけこ さしすせそ\x12""たちつてと"), 
+			utf8_divideLongWords(u8"あいうえお\x12""1かきくけこさしすせそ\x12""たちつてと", 1)
+		);
+		Assert::AreEqual(
+			std::string(u8"あいうえお\x12""12かきくけこ さしすせそ\x12""たちつてと"), 
+			utf8_divideLongWords(u8"あいうえお\x12""12かきくけこさしすせそ\x12""たちつてと", 2)
+		);
+	}
+}
+
 TEST_METHOD(test_utf8_getLetterSize) {
 	// 正しく動作できるか？
 	Assert::AreEqual(1            , int(utf8_getLetterSize(0x40u)));
@@ -1693,6 +1736,13 @@ TEST_METHOD(test_window_isTopMost) {
 		Assert::AreEqual(std::string("GetLastError"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());
 	}
+}
+
+TEST_METHOD(test_wstring_utf16ToSJIS) {
+	// 半角の文字列を変換できるか？
+	Assert::AreEqual(std::string("Hoge"), wstring_utf16ToSJIS(L"Hoge"));
+	// 全角の文字列を変換できるか？
+	Assert::AreEqual(std::string("ホゲ"), wstring_utf16ToSJIS(L"ホゲ"));
 }
 
 TEST_METHOD(test_wstring_utf16ToUtf8) {

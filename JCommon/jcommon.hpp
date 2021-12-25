@@ -66,8 +66,10 @@ namespace jeq {
 
 //// 定数式の定義
 
-// EQチャットのリンクの定数。
-constexpr char EQCHAT_LINK_EDGE = 0x12; // 両端の記号。
+// EQチャットの定数。
+constexpr std::size_t EQCHAT_GOOD_WORD_MAX_LENGTH = 15; // 良い単語の最大長。
+constexpr char EQCHAT_LINK_EDGE = '\x12';               // リンクの両端にある記号。
+constexpr char EQCHAT_VARIABLE_SYMBOL = '$';            // 変数記号。
 
 //// 定数の宣言
 
@@ -358,10 +360,14 @@ std::string string_printf(const char *fmt, ...);
 std::string string_replace(const std::string &str, const std::string &pre_sub, const std::string &post_sub);
 std::string string_sjisToUtf8(const std::string &src);
 std::wstring string_sjisToUtf16(const std::string &src);
+std::string string_utf8ToSJIS(const std::string &src);
+std::wstring string_utf8ToUtf16(const std::string &src);
+std::string utf8_divideLongWords(const std::string &message, std::size_t link_body_size);
 RECT window_getClientRect(HWND hwnd);
 RECT window_getRect(HWND hwnd);
 std::string window_getText(HWND hwnd);
 bool window_isTopMost(HWND hwnd);
+std::string wstring_utf16ToSJIS(const std::wstring &src);
 std::string wstring_utf16ToUtf8(const std::wstring &src);
 
 //// クラスのテンプレートメンバとインラインメンバの定義
