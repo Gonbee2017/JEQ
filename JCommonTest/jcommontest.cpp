@@ -1576,16 +1576,16 @@ TEST_METHOD(test_thread_pool_worker_procedure) {
 }
 
 TEST_METHOD(test_utf8_divideLongWords) {
-	{ // 半角文字のみを含むメッセージを分割しないか？
+	{ // 1バイト文字のみを含むメッセージを分割しないか？
 		Assert::AreEqual(std::string(u8"1234567890123456"), utf8_divideLongWords(u8"1234567890123456", 1));
 	}
-	{ // 全角文字のみを含むメッセージを分割できるか？
+	{ // マルチバイト文字のみを含むメッセージを分割できるか？
 		Assert::AreEqual(std::string(u8"あいうえお"), utf8_divideLongWords(u8"あいうえお", 1));
 		Assert::AreEqual(std::string(u8"あいうえお かきくけこ"), utf8_divideLongWords(u8"あいうえおかきくけこ", 1));
 		Assert::AreEqual(std::string(u8"あいうえお かきくけこ"), utf8_divideLongWords(u8"あいうえお かきくけこ", 1));
 		Assert::AreEqual(std::string(u8"あい うえおかき く けこ"), utf8_divideLongWords(u8"あい うえおかきく けこ", 1));
 	}
-	{ // 全角文字と半角文字の両方を含むメッセージを分割できるか？
+	{ // 1バイト文字とマルチバイト文字の両方を含むメッセージを分割できるか？
 		Assert::AreEqual(std::string(u8"あ a い i う u え e お o"), utf8_divideLongWords(u8"あaいiうuえeおo", 1));
 	}
 	{ // リンクを含むメッセージを分割できるか？

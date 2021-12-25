@@ -69,7 +69,6 @@ namespace jeq {
 // EQチャットの定数。
 constexpr std::size_t EQCHAT_GOOD_WORD_MAX_LENGTH = 15; // 良い単語の最大長。
 constexpr char EQCHAT_LINK_EDGE = '\x12';               // リンクの両端にある記号。
-constexpr char EQCHAT_VARIABLE_SYMBOL = '$';            // 変数記号。
 
 //// 定数の宣言
 

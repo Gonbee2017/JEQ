@@ -5926,7 +5926,7 @@ TEST_METHOD(test_jchat_bar_text_jChatToEQChat) {
 		std::string cmd = bar->text_jChatToEQChat(text);
 		Assert::AreEqual(std::string(u8"Hoge${Foo}Fuga"), cmd);
 	}
-	{ // 15バイトを超える全角文字を含むテキストを変換できるか？
+	{ // 15バイトを超えるマルチバイト文字を含むテキストを変換できるか？
 		context = {};
 		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
 		std::string text = "あいうえおかきくけこ";
