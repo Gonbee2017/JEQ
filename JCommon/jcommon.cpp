@@ -238,19 +238,19 @@ hash_md5(
 		}, [](DWORD b, DWORD c, DWORD d) -> DWORD {
 			return c ^ (b | ~d);
 		},
-    };
+	};
 	static const auto ROTATE = [](
 		DWORD value, 
 		std::size_t size
 	) -> DWORD {
 		return (value << size) | (value >> (32 - size));
 	};
-    DWORD h[4] = {
-        0x67452301,
-        0xefcdab89,
-        0x98badcfe,
-        0x10325476,
-    };
+	DWORD h[4] = {
+		0x67452301,
+		0xefcdab89,
+		0x98badcfe,
+		0x10325476,
+	};
 	DWORD64 bits_length = 8 * DWORD64(message.length());
 	message.append(1, char(0x80));
 	std::size_t pad_length = 64 - (message.length() & 0x3f);
@@ -259,7 +259,7 @@ hash_md5(
 	message.append(pad_length, char(0x00));
 	for (int i = 0; i < 8; ++i)
 		message.append(1, char((bits_length >> (8 * i)) & 0xff));
-    for (auto iter = message.begin(); iter != message.end();) {
+	for (auto iter = message.begin(); iter != message.end();) {
 		DWORD w[16] = {};
 		for (int i = 0; i < 16; ++i) {
 			for (int j = 0; j < 4; ++j)
