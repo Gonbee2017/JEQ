@@ -176,10 +176,62 @@ TEST_METHOD(test_destringize) {
 	Assert::IsTrue (destringize<bool>("a", true ));
 }
 
+TEST_METHOD(test_dump) {
+	{ // 正しく動作できるか？
+		std::vector<BYTE> bin{0x00, 0x01, 0xfe, 0xff};
+		Assert::AreEqual(std::string("0001feff"), dump(std::string(bin.begin(), bin.end())));
+	}
+}
+
 TEST_METHOD(test_getCtrlAlphabetKey) {
 	// 境界値で正しく動作できるか？
 	Assert::AreEqual(BYTE(0x01), getCtrlAlphabetKey('A'));
 	Assert::AreEqual(BYTE(0x1a), getCtrlAlphabetKey('Z'));
+}
+
+TEST_METHOD(test_hash_md5) {
+	// 正しく動作できるか？
+	Assert::AreEqual(
+		std::string("d41d8cd98f00b204e9800998ecf8427e"), 
+		dump(hash_md5(""))
+	);
+	Assert::AreEqual(
+		std::string("0cc175b9c0f1b6a831c399e269772661"), 
+		dump(hash_md5("a"))
+	);
+	Assert::AreEqual(
+		std::string("900150983cd24fb0d6963f7d28e17f72"), 
+		dump(hash_md5("abc"))
+	);
+	Assert::AreEqual(
+		std::string("f96b697d7cb7938d525a2f31aaf161d0"), 
+		dump(hash_md5("message digest"))
+	);
+	Assert::AreEqual(
+		std::string("c3fcd3d76192e4007dfb496cca67e13b"), 
+		dump(hash_md5("abcdefghijklmnopqrstuvwxyz"))
+	);
+	Assert::AreEqual(
+		std::string("d174ab98d277d9f5a5611c2c9f419d9f"), 
+		dump(hash_md5(
+			"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+			"abcdefghijklmnopqrstuvwxyz"
+			"0123456789"
+		))
+	);
+	Assert::AreEqual(
+		std::string("57edf4a22be3c955ac49da2e2107b67a"), 
+		dump(hash_md5(
+			"1234567890"
+			"1234567890"
+			"1234567890"
+			"1234567890"
+			"1234567890"
+			"1234567890"
+			"1234567890"
+			"1234567890"
+		))
+	);
 }
 
 TEST_METHOD(test_ignore_case_compare) {
@@ -270,7 +322,12 @@ TEST_METHOD(test_ini_getKeyValue) {
 			return 0;
 		};
 		help.setSeqBase();
-		Assert::AreEqual(std::string("4"), ini_getKeyValue(help.getSeqStr(1), help.getSeqStr(2), help.getSeqStr(3), help.getSeqStr(4)));
+		Assert::AreEqual(std::string("4"), ini_getKeyValue(
+			help.getSeqStr(1), 
+			help.getSeqStr(2), 
+			help.getSeqStr(3), 
+			help.getSeqStr(4)
+		));
 		Assert::AreEqual(std::string("GetPrivateProfileString"), help.getLine());
 		Assert::AreEqual(std::string("2"), help.getLine());
 		Assert::AreEqual(std::string("3"), help.getLine());
@@ -297,7 +354,12 @@ TEST_METHOD(test_ini_getKeyValue) {
 			return std::strlen(lpReturnedString);
 		};
 		help.setSeqBase();
-		Assert::AreEqual(std::string("5"), ini_getKeyValue(help.getSeqStr(1), help.getSeqStr(2), help.getSeqStr(3), help.getSeqStr(4)));
+		Assert::AreEqual(std::string("5"), ini_getKeyValue(
+			help.getSeqStr(1), 
+			help.getSeqStr(2), 
+			help.getSeqStr(3), 
+			help.getSeqStr(4)
+		));
 		Assert::AreEqual(std::string("GetPrivateProfileString"), help.getLine());
 		Assert::AreEqual(std::string("2"), help.getLine());
 		Assert::AreEqual(std::string("3"), help.getLine());
@@ -594,7 +656,10 @@ TEST_METHOD(test_point_clientToScreen) {
 			return TRUE;
 		};
 		help.setSeqBase();
-		POINT pos = point_clientToScreen(POINT{help.getSeq<LONG>(1), help.getSeq<LONG>(2)}, help.getSeq<HWND>(3));
+		POINT pos = point_clientToScreen(
+			POINT{help.getSeq<LONG>(1), help.getSeq<LONG>(2)}, 
+			help.getSeq<HWND>(3)
+		);
 		Assert::AreEqual(4, int(pos.x));
 		Assert::AreEqual(5, int(pos.y));
 		Assert::AreEqual(std::string("ClientToScreen"), help.getLine());
@@ -618,7 +683,10 @@ TEST_METHOD(test_point_screenToClient) {
 			return TRUE;
 		};
 		help.setSeqBase();
-		POINT pos = point_screenToClient(POINT{help.getSeq<LONG>(1), help.getSeq<LONG>(2)}, help.getSeq<HWND>(3));
+		POINT pos = point_screenToClient(
+			POINT{help.getSeq<LONG>(1), help.getSeq<LONG>(2)}, 
+			help.getSeq<HWND>(3)
+		);
 		Assert::AreEqual(4, int(pos.x));
 		Assert::AreEqual(5, int(pos.y));
 		Assert::AreEqual(std::string("ScreenToClient"), help.getLine());
@@ -869,9 +937,18 @@ TEST_METHOD(test_sjis_isLead) {
 
 TEST_METHOD(test_sjis_replace) {
 	// 正しく動作できるか？
-	Assert::AreEqual(std::string("AちAちbろAちbろcは"), sjis_replace("aいaいbろaいbろcは", "aい", "Aち"));
-	Assert::AreEqual(std::string("aいAちBりAちBりcは"), sjis_replace("aいaいbろaいbろcは", "aいbろ", "AちBり"));
-	Assert::AreEqual(std::string("aいaいbろAちBりCぬ"), sjis_replace("aいaいbろaいbろcは", "aいbろcは", "AちBりCぬ"));
+	Assert::AreEqual(
+		std::string("AちAちbろAちbろcは"), 
+		sjis_replace("aいaいbろaいbろcは", "aい", "Aち")
+	);
+	Assert::AreEqual(
+		std::string("aいAちBりAちBりcは"), 
+		sjis_replace("aいaいbろaいbろcは", "aいbろ", "AちBり")
+	);
+	Assert::AreEqual(
+		std::string("aいaいbろAちBりCぬ"), 
+		sjis_replace("aいaいbろaいbろcは", "aいbろcは", "AちBりCぬ")
+	);
 
 }
 
@@ -926,14 +1003,26 @@ TEST_METHOD(test_sjis_toLower) {
 
 TEST_METHOD(test_string_printf) {
 	// 正しく動作できるか？
-	Assert::AreEqual(std::string("0012 0.34 Hoge"), string_printf("%04d %.2f %s", 12, 0.345, "Hoge"));
+	Assert::AreEqual(
+		std::string("0012 0.34 Hoge"), 
+		string_printf("%04d %.2f %s", 12, 0.345, "Hoge")
+	);
 }
 
 TEST_METHOD(test_string_replace) {
 	// 正しく動作できるか？
-	Assert::AreEqual(std::string(u8"AちAちbろAちbろcは"), string_replace(u8"aいaいbろaいbろcは", u8"aい", u8"Aち"));
-	Assert::AreEqual(std::string(u8"aいAちBりAちBりcは"), string_replace(u8"aいaいbろaいbろcは", u8"aいbろ", u8"AちBり"));
-	Assert::AreEqual(std::string(u8"aいaいbろAちBりCぬ"), string_replace(u8"aいaいbろaいbろcは", u8"aいbろcは", u8"AちBりCぬ"));
+	Assert::AreEqual(
+		std::string(u8"AちAちbろAちbろcは"), 
+		string_replace(u8"aいaいbろaいbろcは", u8"aい", u8"Aち")
+	);
+	Assert::AreEqual(
+		std::string(u8"aいAちBりAちBりcは"), 
+		string_replace(u8"aいaいbろaいbろcは", u8"aいbろ", u8"AちBり")
+	);
+	Assert::AreEqual(
+		std::string(u8"aいaいbろAちBりCぬ"), 
+		string_replace(u8"aいaいbろaいbろcは", u8"aいbろcは", u8"AちBりCぬ")
+	);
 }
 
 TEST_METHOD(test_string_sjisToUtf16) {
@@ -1575,33 +1664,62 @@ TEST_METHOD(test_thread_pool_worker_procedure) {
 	END_DEF_SPY_CLASS(thread_pool_t);
 }
 
+TEST_METHOD(test_undump) {
+	{ // 失敗できるか？
+		Assert::AreEqual(std::string("failed"), undump("0001fef", "failed"));
+		Assert::AreEqual(std::string("failed"), undump("0001fefg", "failed"));
+	}
+	{ // 正しく動作できるか？
+		std::string bin = undump("0001feff");
+		Assert::AreEqual(4, int(bin.length()));
+		Assert::AreEqual(0x00, int(BYTE(bin[0])));
+		Assert::AreEqual(0x01, int(BYTE(bin[1])));
+		Assert::AreEqual(0xfe, int(BYTE(bin[2])));
+		Assert::AreEqual(0xff, int(BYTE(bin[3])));
+	}
+}
+
 TEST_METHOD(test_utf8_divideLongWords) {
-	{ // 1バイト文字のみを含むメッセージを分割しないか？
-		Assert::AreEqual(std::string(u8"1234567890123456"), utf8_divideLongWords(u8"1234567890123456", 1));
-	}
-	{ // マルチバイト文字のみを含むメッセージを分割できるか？
-		Assert::AreEqual(std::string(u8"あいうえお"), utf8_divideLongWords(u8"あいうえお", 1));
-		Assert::AreEqual(std::string(u8"あいうえお かきくけこ"), utf8_divideLongWords(u8"あいうえおかきくけこ", 1));
-		Assert::AreEqual(std::string(u8"あいうえお かきくけこ"), utf8_divideLongWords(u8"あいうえお かきくけこ", 1));
-		Assert::AreEqual(std::string(u8"あい うえおかき く けこ"), utf8_divideLongWords(u8"あい うえおかきく けこ", 1));
-	}
-	{ // 1バイト文字とマルチバイト文字の両方を含むメッセージを分割できるか？
-		Assert::AreEqual(std::string(u8"あ a い i う u え e お o"), utf8_divideLongWords(u8"あaいiうuえeおo", 1));
-	}
-	{ // リンクを含むメッセージを分割できるか？
-		Assert::AreEqual(
-			std::string(u8"あいうえお\x12""1かきくけこ\x12""さしすせそ"), 
-			utf8_divideLongWords(u8"あいうえお\x12""1かきくけこ\x12""さしすせそ", 1)
-		);
-		Assert::AreEqual(
-			std::string(u8"あいうえお\x12""1かきくけこ さしすせそ\x12""たちつてと"), 
-			utf8_divideLongWords(u8"あいうえお\x12""1かきくけこさしすせそ\x12""たちつてと", 1)
-		);
-		Assert::AreEqual(
-			std::string(u8"あいうえお\x12""12かきくけこ さしすせそ\x12""たちつてと"), 
-			utf8_divideLongWords(u8"あいうえお\x12""12かきくけこさしすせそ\x12""たちつてと", 2)
-		);
-	}
+	// 1バイト文字のみを含むメッセージを分割しないか？
+	Assert::AreEqual(
+		std::string(u8"1234567890123456"), 
+		utf8_divideLongWords(u8"1234567890123456", 1)
+	);
+	// マルチバイト文字のみを含むメッセージを分割できるか？
+	Assert::AreEqual(
+		std::string(u8"あいうえお"), 
+		utf8_divideLongWords(u8"あいうえお", 1)
+	);
+	Assert::AreEqual(
+		std::string(u8"あいうえお かきくけこ"), 
+		utf8_divideLongWords(u8"あいうえおかきくけこ", 1)
+	);
+	Assert::AreEqual(
+		std::string(u8"あいうえお かきくけこ"), 
+		utf8_divideLongWords(u8"あいうえお かきくけこ", 1)
+	);
+	Assert::AreEqual(
+		std::string(u8"あい うえおかき く けこ"), 
+		utf8_divideLongWords(u8"あい うえおかきく けこ", 1)
+	);
+	// 1バイト文字とマルチバイト文字の両方を含むメッセージを分割できるか？
+	Assert::AreEqual(
+		std::string(u8"あ a い i う u え e お o"), 
+		utf8_divideLongWords(u8"あaいiうuえeおo", 1)
+	);
+	// リンクを含むメッセージを分割できるか？
+	Assert::AreEqual(
+		std::string(u8"あいうえお\x12""1かきくけこ\x12""さしすせそ"), 
+		utf8_divideLongWords(u8"あいうえお\x12""1かきくけこ\x12""さしすせそ", 1)
+	);
+	Assert::AreEqual(
+		std::string(u8"あいうえお\x12""1かきくけこ さしすせそ\x12""たちつてと"), 
+		utf8_divideLongWords(u8"あいうえお\x12""1かきくけこさしすせそ\x12""たちつてと", 1)
+	);
+	Assert::AreEqual(
+		std::string(u8"あいうえお\x12""12かきくけこ さしすせそ\x12""たちつてと"), 
+		utf8_divideLongWords(u8"あいうえお\x12""12かきくけこさしすせそ\x12""たちつてと", 2)
+	);
 }
 
 TEST_METHOD(test_utf8_getLetterSize) {

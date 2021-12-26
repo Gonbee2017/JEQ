@@ -343,6 +343,8 @@ void _stringizeTo(std::ostream &out, const X &x, Lead &&lead, Trails &&...trails
 
 POINT cursor_getPos();
 bool cursor_isOverWindow(HWND hwnd);
+std::string dump(const std::string &bin);
+std::string hash_md5(std::string message);
 void ini_deleteKey(const std::string &ini_path, const std::string &section_name, const std::string &key_name);
 void ini_deleteSection(const std::string &ini_path, const std::string &section_name);
 std::string ini_getKeyValue(const std::string &ini_path, const std::string &section_name, const std::string &key_name, const std::string &def_value = std::string());
@@ -361,6 +363,7 @@ std::string string_sjisToUtf8(const std::string &src);
 std::wstring string_sjisToUtf16(const std::string &src);
 std::string string_utf8ToSJIS(const std::string &src);
 std::wstring string_utf8ToUtf16(const std::string &src);
+std::string undump(const std::string &hex_str, const std::string &def = std::string());
 std::string utf8_divideLongWords(const std::string &message, std::size_t link_body_size);
 RECT window_getClientRect(HWND hwnd);
 RECT window_getRect(HWND hwnd);
