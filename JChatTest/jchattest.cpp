@@ -1068,7 +1068,6 @@ TEST_METHOD(test_eqgame_KeypressHandler_HandleKeyDown_detour) {
 		eqgame_t::NotInChatMode = &NotInChatMode;
 		eqgame_t *game = help.getSeq<eqgame_t*>();
 		Assert::IsTrue(game->KeypressHandler_HandleKeyDown_detour(KeyCombo{0, 0, 0, DIK_RETURN}));
-		Assert::IsTrue(game->KeypressHandler_HandleKeyDown_detour(KeyCombo{0, 0, 0, DIK_SLASH}));
 		Assert::IsTrue(game->KeypressHandler_HandleKeyDown_detour(KeyCombo{0, 0, 1, DIK_UP}));
 		Assert::IsTrue(game->KeypressHandler_HandleKeyDown_detour(KeyCombo{0, 0, 1, DIK_DOWN}));
 	}
@@ -1089,23 +1088,16 @@ TEST_METHOD(test_eqgame_KeypressHandler_HandleKeyDown_detour) {
 		};
 		NotInChatMode = FALSE;
 		Assert::IsFalse(game->KeypressHandler_HandleKeyDown_detour(KeyCombo{0, 0, 0, DIK_RETURN}));
-		Assert::IsTrue (game->KeypressHandler_HandleKeyDown_detour(KeyCombo{0, 0, 0, DIK_SLASH}));
-		Assert::IsFalse(game->KeypressHandler_HandleKeyDown_detour(KeyCombo{0, 0, 1, DIK_UP}));
-		Assert::IsTrue (game->KeypressHandler_HandleKeyDown_detour (KeyCombo{0, 0, 1, DIK_DOWN}));
+		Assert::IsTrue (game->KeypressHandler_HandleKeyDown_detour(KeyCombo{0, 0, 1, DIK_UP}));
+		Assert::IsFalse(game->KeypressHandler_HandleKeyDown_detour(KeyCombo{0, 0, 1, DIK_DOWN}));
 		NotInChatMode = TRUE;
-		Assert::IsFalse(game->KeypressHandler_HandleKeyDown_detour(KeyCombo{0, 1, 0, DIK_RETURN}));
-		Assert::IsTrue (game->KeypressHandler_HandleKeyDown_detour(KeyCombo{0, 0, 1, DIK_SLASH}));
+		Assert::IsTrue (game->KeypressHandler_HandleKeyDown_detour(KeyCombo{0, 1, 0, DIK_RETURN}));
 		Assert::IsFalse(game->KeypressHandler_HandleKeyDown_detour(KeyCombo{0, 0, 0, DIK_A}));
 		Assert::AreEqual(std::string("KeypressHandler_HandleKeyDown_target"), help.getLine());
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(stringize(DIK_RETURN), help.getLine());
-		Assert::AreEqual(std::string("KeypressHandler_HandleKeyDown_target"), help.getLine());
-		Assert::AreEqual(std::string("0"), help.getLine());
-		Assert::AreEqual(std::string("0"), help.getLine());
-		Assert::AreEqual(std::string("0"), help.getLine());
-		Assert::AreEqual(stringize(DIK_SLASH), help.getLine());
 		Assert::AreEqual(std::string("KeypressHandler_HandleKeyDown_target"), help.getLine());
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string("0"), help.getLine());
@@ -1121,11 +1113,6 @@ TEST_METHOD(test_eqgame_KeypressHandler_HandleKeyDown_detour) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(stringize(DIK_RETURN), help.getLine());
-		Assert::AreEqual(std::string("KeypressHandler_HandleKeyDown_target"), help.getLine());
-		Assert::AreEqual(std::string("0"), help.getLine());
-		Assert::AreEqual(std::string("0"), help.getLine());
-		Assert::AreEqual(std::string("1"), help.getLine());
-		Assert::AreEqual(stringize(DIK_SLASH), help.getLine());
 		Assert::AreEqual(std::string("KeypressHandler_HandleKeyDown_target"), help.getLine());
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string("0"), help.getLine());
@@ -1246,21 +1233,10 @@ TEST_METHOD(test_eqgame_KeypressHandler_HandleKeyUp_detour) {
 		};
 		NotInChatMode = TRUE;
 		Assert::IsTrue(game->KeypressHandler_HandleKeyUp_detour(KeyCombo{0, 0, 0, DIK_RETURN}));
-		Assert::IsTrue(game->KeypressHandler_HandleKeyUp_detour(KeyCombo{0, 0, 0, DIK_SLASH}));
 		Assert::IsTrue(game->KeypressHandler_HandleKeyUp_detour(KeyCombo{0, 0, 1, DIK_UP}));
 		Assert::IsTrue(game->KeypressHandler_HandleKeyUp_detour(KeyCombo{0, 0, 1, DIK_DOWN}));
 		NotInChatMode = FALSE;
 		Assert::IsTrue(game->KeypressHandler_HandleKeyUp_detour(KeyCombo{0, 0, 0, DIK_RETURN}));
-		Assert::AreEqual(std::string("SetActiveWindow"), help.getLine());
-		Assert::AreEqual(std::string("2"), help.getLine());
-		Assert::AreEqual(std::string("SetWindowText"), help.getLine());
-		Assert::AreEqual(std::string("3"), help.getLine());
-		Assert::AreEqual(std::string("/"), help.getLine());
-		Assert::AreEqual(std::string("SendMessage"), help.getLine());
-		Assert::AreEqual(std::string("3"), help.getLine());
-		Assert::AreEqual(stringize(EM_SETSEL), help.getLine());
-		Assert::AreEqual(std::string("1"), help.getLine());
-		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string("SetActiveWindow"), help.getLine());
 		Assert::AreEqual(std::string("2"), help.getLine());
 		Assert::AreEqual(std::string("SetActiveWindow"), help.getLine());
@@ -1289,18 +1265,11 @@ TEST_METHOD(test_eqgame_KeypressHandler_HandleKeyUp_detour) {
 			return help.getSeq() % 2;
 		};
 		NotInChatMode = FALSE;
-		Assert::IsFalse(game->KeypressHandler_HandleKeyUp_detour(KeyCombo{0, 0, 0, DIK_SLASH}));
-		Assert::IsTrue (game->KeypressHandler_HandleKeyUp_detour(KeyCombo{0, 0, 1, DIK_UP}));
-		Assert::IsFalse(game->KeypressHandler_HandleKeyUp_detour(KeyCombo{0, 0, 1, DIK_DOWN}));
+		Assert::IsFalse(game->KeypressHandler_HandleKeyUp_detour(KeyCombo{0, 0, 1, DIK_UP}));
+		Assert::IsTrue (game->KeypressHandler_HandleKeyUp_detour(KeyCombo{0, 0, 1, DIK_DOWN}));
 		NotInChatMode = TRUE;
-		Assert::IsTrue (game->KeypressHandler_HandleKeyUp_detour(KeyCombo{0, 1, 0, DIK_RETURN}));
-		Assert::IsFalse(game->KeypressHandler_HandleKeyUp_detour(KeyCombo{0, 0, 1, DIK_SLASH}));
+		Assert::IsFalse(game->KeypressHandler_HandleKeyUp_detour(KeyCombo{0, 1, 0, DIK_RETURN}));
 		Assert::IsTrue (game->KeypressHandler_HandleKeyUp_detour(KeyCombo{0, 0, 0, DIK_A}));
-		Assert::AreEqual(std::string("KeypressHandler_HandleKeyUp_target"), help.getLine());
-		Assert::AreEqual(std::string("0"), help.getLine());
-		Assert::AreEqual(std::string("0"), help.getLine());
-		Assert::AreEqual(std::string("0"), help.getLine());
-		Assert::AreEqual(stringize(DIK_SLASH), help.getLine());
 		Assert::AreEqual(std::string("KeypressHandler_HandleKeyUp_target"), help.getLine());
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string("0"), help.getLine());
@@ -1316,11 +1285,6 @@ TEST_METHOD(test_eqgame_KeypressHandler_HandleKeyUp_detour) {
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(stringize(DIK_RETURN), help.getLine());
-		Assert::AreEqual(std::string("KeypressHandler_HandleKeyUp_target"), help.getLine());
-		Assert::AreEqual(std::string("0"), help.getLine());
-		Assert::AreEqual(std::string("0"), help.getLine());
-		Assert::AreEqual(std::string("1"), help.getLine());
-		Assert::AreEqual(stringize(DIK_SLASH), help.getLine());
 		Assert::AreEqual(std::string("KeypressHandler_HandleKeyUp_target"), help.getLine());
 		Assert::AreEqual(std::string("0"), help.getLine());
 		Assert::AreEqual(std::string("0"), help.getLine());
@@ -1724,52 +1688,6 @@ TEST_METHOD(test_jchat_bar_activate) {
 			return help.getSeq<HWND>();
 		};
 		bar->activate(KeyCombo{0, 0, 0, DIK_RETURN});
-		Assert::AreEqual(std::string("SetActiveWindow"), help.getLine());
-		Assert::AreEqual(std::string("1"), help.getLine());
-		Assert::AreEqual(std::string(), help.getLine());
-	}
-	{ // スラッシュキーを押されたときにアクティブにできるか？
-		test_helper_t help;
-		context = {};
-		auto bar = (spy_jchat_bar_t*)(&context.jchat_bar);
-		bar->data->handle = help.getSeq<HWND>();
-		bar->data->edit.handle = help.getSeq<HWND>();
-		api::SendMessage = [&](
-			HWND hWnd, 
-			UINT Msg, 
-			WPARAM wParam, 
-			LPARAM lParam
-		) -> LRESULT {
-			help << "SendMessage\n";
-			help << int(hWnd) << '\n';
-			help << Msg << '\n';
-			help << wParam << '\n';
-			help << lParam << '\n';
-			return 0;
-		};
-		api::SetActiveWindow_true = [&](HWND hWnd) -> HWND {
-			help << "SetActiveWindow\n";
-			help << int(hWnd) << '\n';
-			return help.getSeq<HWND>();
-		};
-		api::SetWindowText_true = [&](
-			HWND hWnd, 
-			LPCSTR lpString
-		) -> BOOL {
-			help << "SetWindowText\n";
-			help << int(hWnd) << '\n';
-			help << lpString << '\n';
-			return TRUE;
-		};
-		bar->activate(KeyCombo{0, 0, 0, DIK_SLASH});
-		Assert::AreEqual(std::string("SetWindowText"), help.getLine());
-		Assert::AreEqual(std::string("2"), help.getLine());
-		Assert::AreEqual(std::string("/"), help.getLine());
-		Assert::AreEqual(std::string("SendMessage"), help.getLine());
-		Assert::AreEqual(std::string("2"), help.getLine());
-		Assert::AreEqual(stringize(EM_SETSEL), help.getLine());
-		Assert::AreEqual(std::string("1"), help.getLine());
-		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string("SetActiveWindow"), help.getLine());
 		Assert::AreEqual(std::string("1"), help.getLine());
 		Assert::AreEqual(std::string(), help.getLine());

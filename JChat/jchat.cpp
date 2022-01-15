@@ -98,7 +98,6 @@ namespace jeq {
 // 日本語チャットバーをアクティブにするキー状況のセット。
 const std::unordered_set<DWORD> eqgame_t::ACTIVATE_KEY_SITUATIONS = {
 	makeKeySituation(TRUE , KeyCombo{0, 0, 0, DIK_RETURN}),
-	makeKeySituation(TRUE , KeyCombo{0, 0, 0, DIK_SLASH }),
 	makeKeySituation(TRUE , KeyCombo{0, 0, 1, DIK_UP    }),
 	makeKeySituation(TRUE , KeyCombo{0, 0, 1, DIK_DOWN  }),
 	makeKeySituation(FALSE, KeyCombo{0, 0, 0, DIK_RETURN}),
@@ -107,7 +106,6 @@ const std::unordered_set<DWORD> eqgame_t::ACTIVATE_KEY_SITUATIONS = {
 // 無視するキー状況のセット。
 const std::unordered_set<DWORD> eqgame_t::IGNORE_KEY_SITUATIONS = {
 	makeKeySituation(TRUE, KeyCombo{0, 0, 0, DIK_RETURN}),
-	makeKeySituation(TRUE, KeyCombo{0, 0, 0, DIK_SLASH }),
 	makeKeySituation(TRUE, KeyCombo{0, 0, 1, DIK_UP    }),
 	makeKeySituation(TRUE, KeyCombo{0, 0, 1, DIK_DOWN  }),
 };
@@ -250,16 +248,9 @@ void jchat_bar_t::registerClass() {
 }
 
 // 日本語チャットバーをアクティブにする。
-// きっかけがスラッシュキーならテキストを"/"にして、続けて入力できる
-// ようにキャレットを移動してから、ウインドウをアクティブにする。
-// それ以外なら入力欄は変更せず、ただ単にアクティブにする。
 void jchat_bar_t::activate(
 	const KeyCombo &key_combo // きっかけになったキーの組み合わせ。
 ) {
-	if (key_combo.key == DIK_SLASH) {
-		edit_setLine("/");
-		edit_selectText(1, 1);
-	}
 	api::SetActiveWindow(data->handle);
 }
 
